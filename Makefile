@@ -5,11 +5,14 @@ OBJ = ${SRC:%.c=./build/%.o}
 
 all: orpheus
 
-build/%.o: %.c
+build/%.o: %.c config.h
 	${CC} -c ${CFLAGS} $< -o $@
 
 orpheus: ${OBJ}
 	${CC} -o $@ ${OBJ} ${LDFLAGS}
 
+clean:
+	rm orpheus
+	rm ./build/*.o
 
-.PHONY: all 
+.PHONY: all clean

@@ -56,8 +56,7 @@ static size_t utf8decode(const char *c, long *u, size_t clen) {
     return len;
 }
 
-Drw *drw_create(Display *dpy, int screen, Window root, unsigned int w,
-                unsigned int h) {
+Drw *drw_create(Display *dpy, int screen, Window root, unsigned int w, unsigned int h) {
     Drw *drw = ecalloc(1, sizeof(Drw));
 
     drw->dpy = dpy;
@@ -65,7 +64,8 @@ Drw *drw_create(Display *dpy, int screen, Window root, unsigned int w,
     drw->root = root;
     drw->w = w;
     drw->h = h;
-    drw->drawable = XCreatePixmap(dpy, root, w, h, DefaultDepth(dpy, screen));
+    // drw->drawable = XCreatePixmap(dpy, root, w, h, DefaultDepth(dpy, screen));
+    drw->drawable = root;
     drw->gc = XCreateGC(dpy, root, 0, NULL);
     XSetLineAttributes(dpy, drw->gc, 1, LineSolid, CapButt, JoinMiter);
 
@@ -107,13 +107,11 @@ static Fnt *xfont_create(Drw *drw, const char *fontname,
          * behaviour whereas the former just results in missing-character
          * rectangles being drawn, at least with some fonts. */
         if (!(xfont = XftFontOpenName(drw->dpy, drw->screen, fontname))) {
-            fprintf(stderr, "error, cannot load font from name: '%s'\n",
-                    fontname);
+            fprintf(stderr, "error, cannot load font from name: '%s'\n", fontname);
             return NULL;
         }
         if (!(pattern = FcNameParse((FcChar8 *)fontname))) {
-            fprintf(stderr, "error, cannot parse font name to pattern: '%s'\n",
-                    fontname);
+            fprintf(stderr, "error, cannot parse font name to pattern: '%s'\n", fontname);
             XftFontClose(drw->dpy, xfont);
             return NULL;
         }
@@ -126,13 +124,15 @@ static Fnt *xfont_create(Drw *drw, const char *fontname,
         die("no font specified.");
     }
 
-    /* Do not allow using color fonts. This is a workaround for a BadLength
+    /*
+
+    / Do not allow using color fonts. This is a workaround for a BadLength
      * error from Xft with color glyphs. Modelled on the Xterm workaround. See
      * https://bugzilla.redhat.com/show_bug.cgi?id=1498269
      * https://lists.suckless.org/dev/1701/30932.html
      * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=916349
      * and lots more all over the internet.
-     */
+     /
     FcBool iscol;
     if (FcPatternGetBool(xfont->pattern, FC_COLOR, 0, &iscol) ==
             FcResultMatch &&
@@ -140,6 +140,8 @@ static Fnt *xfont_create(Drw *drw, const char *fontname,
         XftFontClose(drw->dpy, xfont);
         return NULL;
     }
+
+    */
 
     font = ecalloc(1, sizeof(Fnt));
     font->xfont = xfont;
@@ -232,7 +234,7 @@ void drw_rect(Drw *drw, int x, int y, unsigned int w, unsigned int h,
     if (filled)
         XFillRectangle(drw->dpy, drw->drawable, drw->gc, x, y, w, h);
     else
-        XDrawRectangle(drw->dpy, drw->drawable, drw->gc, x, y, w - 1, h - 1);
+        XDrawRectangle(drw->dpy, drw->drawable, drw->gc, x, y, w, h);
 }
 
 int drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h,
