@@ -9,10 +9,14 @@
 #include "drw.h"
 #include "util.h"
 
-#include "config.h"
-
 #define LENGTH(X) (sizeof X / sizeof X[0])
 #define TEXTW(X) (drw_fontset_getwidth(drw, (X)) + lrpad)
+
+typedef struct {
+    const char **emojis;
+    int length;
+} EmojiSet;
+
 
 static void run(void);
 static void setup(void);
@@ -56,12 +60,12 @@ static const char *colors[] = {"#f2f2f2", "#040404"};
 static const int focus_line[2] = {4, 2};
 static int lrpad;
 static int tab = 0;
-// static int focus_box[2] = {-1, -1};
 static int scroll = 0;
 static int last_emoji_x = -1;
 static int last_emoji_y = -1;
 static Cursor c_hover;
 
+#include "config.h"
 
 void run(void) {
     XEvent ev;
@@ -118,7 +122,6 @@ void buttonpress(XEvent *e) {
     // mouse right click
     if (ev->button == 1) {
         if (get_block(x, y, &r, &c)) {
-            printf("row: %d | col: %d\n", r, c);
             // headers
             if (r == tabs_row) {
                 if (tab != c) {
@@ -191,15 +194,13 @@ void draw_tabs(void) {
 }
 
 void draw_grid(void) {
-    int x, y, r, c, e;
+    int r, c;
 
-    // XClearArea(dpy, win, 0, 0, width, height - box, 0);
+    XClearArea(dpy, win, 0, 0, width, height - box, 0);
     
     for (r = 0; r < tabs_row; r++) {
-        y = gap_box * r;
         for (c = 0; c < grid; c++) {
             if (!is_emoji(r, c)) return;
-            x = gap_box * c;
             draw_emoji(r, c, 0);
         }
     }
