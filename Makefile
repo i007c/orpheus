@@ -1,11 +1,12 @@
 include config.mk
 
-SRC = drw.c orpheus.c util.c
-OBJ = ${SRC:%.c=./build/%.o}
+FILES = orpheus drw util
+SRC = $(addprefix ./src/, $(addsuffix .c, $(FILES)))
+OBJ = $(addprefix ./build/, $(addsuffix .o, $(FILES)))
 
 all: orpheus
 
-build/%.o: %.c config.h
+build/%.o: src/%.c src/config.h
 	${CC} -c ${CFLAGS} $< -o $@
 
 orpheus: ${OBJ}
