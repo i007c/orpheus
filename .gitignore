@@ -53,3 +53,5 @@ dkms.conf
 
 build
 orpheus
+.env
+script/emojis/emojis.*
