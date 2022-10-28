@@ -16,7 +16,8 @@ coming soon 😁
 
 ## Install
 
-you need to have x11, git, gcc and make installed
+you need to have x11, git, gcc and make installed\
+you also need to have [xclip](https://github.com/astrand/xclip) installed for copying to clipboard
 
 ```bash
 git clone https://github.com/i007c/orpheus.git
@@ -26,4 +27,10 @@ sudo make install
 
 then just run the `orpheus` or `emoji-picker` as you wish
 
-## feel free to contribute
+## Todos
+
+* [ ] Support for multi char emojis
+* [ ] Smooth rendering
+* [ ] integrated copy to clipboard system
+
+## Feel free to contribute
