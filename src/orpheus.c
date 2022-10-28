@@ -26,15 +26,16 @@ static void expose(XEvent *e);
 static void buttonpress(XEvent *e);
 static void keypress(XEvent *e);
 static void mousemove(XEvent *e);
+static void window_leave(XEvent *e);
 
 // draws
 static void draw_tabs(void);
 static void draw_grid(void);
-static void draw_emoji(int r, int c, int focus);
+static void draw_emoji(int c, int r, int focus);
 
 // utils
-int get_block(int x, int y, int *r, int *c);
-int is_emoji(int r, int c);
+int get_block(int x, int y, int *c, int *r);
+int is_emoji(int c, int r);
 
 
 /* variables */
@@ -43,26 +44,19 @@ static void (*handler[LASTEvent])(XEvent *) = {
     [Expose] = expose,
     [MotionNotify] = mousemove,
     [KeyPress] = keypress,
+    [LeaveNotify] = window_leave,
 };
 static int running = 1;
 static int screen;
 static Display *dpy;
 static Window win;
 static Drw *drw;
-static const int gap = 2;
-static const int grid = 8;
-static const int tabs_row = grid - 1;
-static const int box = 45;
-static const int gap_box = box + gap;
-static const int width = (grid * box) + ((grid - 1) * gap);
-static const int height = width;
-static const char *colors[] = {"#f2f2f2", "#040404"};
-static const int focus_line[2] = {4, 2};
 static int lrpad;
 static int tab = 0;
 static int scroll = 0;
-static int last_emoji_x = -1;
-static int last_emoji_y = -1;
+// curnt = current
+static int curnt_emoji_c = -1;
+static int curnt_emoji_r = -1;
 static Cursor c_hover;
 
 #include "config.h"
@@ -102,7 +96,7 @@ void setup(void) {
     XSelectInput(
         dpy, win, 
         PointerMotionMask | KeyPressMask | ExposureMask |
-        ButtonPressMask
+        ButtonPressMask | LeaveWindowMask
     );
 
 }
@@ -117,15 +111,16 @@ void expose(XEvent *e) {
 void buttonpress(XEvent *e) {
     XButtonPressedEvent *ev = &e->xbutton;
     int x = ev->x, y = ev->y;
-    int r, c;
+    int c, r;
 
     // mouse right click
     if (ev->button == 1) {
-        if (get_block(x, y, &r, &c)) {
+        if (get_block(x, y, &c, &r)) {
             // headers
             if (r == tabs_row) {
                 if (tab != c) {
                     tab = c;
+                    scroll = 0;
                     draw_tabs();
                     draw_grid();
                 }
@@ -165,62 +160,78 @@ void keypress(XEvent *e) {
 void mousemove(XEvent *e) {
     XMotionEvent *ev = &e->xmotion;
     int x = ev->x, y = ev->y;
-    int r, c;
+    int c, r;
     
-    if (get_block(x, y, &r, &c) && (r == tabs_row || is_emoji(r, c))) {
+    if (get_block(x, y, &c, &r) && (r == tabs_row || is_emoji(c, r))) {
         XDefineCursor(dpy, win, c_hover);
         
-        if (last_emoji_x != r || last_emoji_y != c) {
-            if (last_emoji_x != -1) draw_emoji(last_emoji_x, last_emoji_y, 0);
-            draw_emoji(r, c, 1);
-            last_emoji_x = r;
-            last_emoji_y = c;
+        if (curnt_emoji_c != c || curnt_emoji_r != r) {
+            if (curnt_emoji_c != -1) draw_emoji(curnt_emoji_c, curnt_emoji_r, 0);
+            draw_emoji(c, r, 1);
+            curnt_emoji_c = c;
+            curnt_emoji_r = r;
         }
     } else {
         XDefineCursor(dpy, win, 0);
-        if (last_emoji_x != -1) {
-            draw_emoji(last_emoji_x, last_emoji_y, 0);
-            last_emoji_x = -1;
-            last_emoji_y = -1;
+        if (curnt_emoji_c != -1) {
+            draw_emoji(curnt_emoji_c, curnt_emoji_r, 0);
+            curnt_emoji_c = -1;
+            curnt_emoji_r = -1;
         }
+    }
+}
+
+void window_leave(XEvent *e) {
+    if (curnt_emoji_c != -1) {
+        draw_emoji(curnt_emoji_c, curnt_emoji_r, 0);
+        curnt_emoji_c = -1;
+        curnt_emoji_r = -1;
     }
 }
 
 // draws
 void draw_tabs(void) {
     for (int c = 0; c < grid; c++) {
-        draw_emoji(7, c, 0);
+        draw_emoji(c, 7, 0);
     }
 }
 
 void draw_grid(void) {
-    int r, c;
+    int c, r;
 
-    XClearArea(dpy, win, 0, 0, width, height - box, 0);
-    
     for (r = 0; r < tabs_row; r++) {
+        XClearArea(dpy, win, 0, r * gap_box, width, box, 0);
+
         for (c = 0; c < grid; c++) {
-            if (!is_emoji(r, c)) return;
-            draw_emoji(r, c, 0);
+            if (!is_emoji(c, r)) continue;
+            draw_emoji(c, r, 0);
         }
     }
 }
 
-void draw_emoji(int r, int c, int focus) {
+void draw_emoji(int c, int r, int focus) {
     int e = r * grid + c + scroll * grid;
     int x = gap_box * c;
     int y = gap_box * r;
 
-    if (r == tabs_row)
+    if (r == tabs_row) {
         drw_text(drw, x, y, box, box, 6, tabs[c], 0);
-    else 
+        if (c == tab) {
+            XSetForeground(dpy, drw->gc, tab_active);
+            XFillRectangle(dpy, win, drw->gc, x, y, box, tab_line);
+
+            if (curnt_emoji_c == c && curnt_emoji_r == r)
+                drw_rect(drw, x, y + box - tab_line, box, tab_line, 1, 0);
+            
+        }
+    } else 
         drw_text(drw, x, y, box, box, 6, emojis[tab].emojis[e], 0);
+    
     
     if (!focus) return;
     
-
     if (r == tabs_row) {
-        drw_rect(drw, x, y + box - 4, box, 4, 1, 0);
+        drw_rect(drw, x, y + box - tab_line, box, tab_line, 1, 0);
     } else {
         XSetLineAttributes(dpy, drw->gc, focus_line[0], LineSolid, CapButt, JoinMiter);
         drw_rect(drw, 
@@ -231,12 +242,12 @@ void draw_emoji(int r, int c, int focus) {
 }
 
 // utils
-int get_block(int x, int y, int *r, int *c) {
-    int rb, cb;
-    *r = y / gap_box;
+int get_block(int x, int y, int *c, int *r) {
+    int cb, rb;
     *c = x / gap_box;
-    rb = (*r + 1) * box + (*r * gap);
+    *r = y / gap_box;
     cb = (*c + 1) * box + (*c * gap);
+    rb = (*r + 1) * box + (*r * gap);
 
     if ((y - rb) <= 0 && (x - cb) <= 0)
         return 1;
@@ -244,7 +255,7 @@ int get_block(int x, int y, int *r, int *c) {
     return 0;
 }
 
-int is_emoji(int r, int c) {
+int is_emoji(int c, int r) {
     return (r * grid + c + scroll * grid < emojis[tab].length);
 }
 
