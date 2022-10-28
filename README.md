@@ -8,7 +8,7 @@ coming soon 😁
 
 ## Demo
 
-<div style="text-align: center;">
+<div align="center">
     <img src="image/demo.gif" width="300" />
     <br />
     click to copy
