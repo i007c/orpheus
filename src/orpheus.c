@@ -11,6 +11,7 @@
 #include "util.h"
 
 #define LENGTH(X) (sizeof X / sizeof X[0])
+#define EMOJI_SET(X) { X, LENGTH(X) }
 #define TEXTW(X) (drw_fontset_getwidth(drw, (X)) + lrpad)
 
 typedef struct {
@@ -221,7 +222,6 @@ void draw_emoji(int c, int r) {
         if (!is_emoji(c, r)) return;
         drw_text(drw, x, y, box, box, 6, emojis[tab].emojis[e], 0);
     }
-    
     
     // focus
     if (crnt_emoji_c != c || crnt_emoji_r != r) return;

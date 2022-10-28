@@ -144,14 +144,14 @@ static const char *e_flags[] = {"🏁", "🚩", "🎌", "🏴", "🏳"};
 static const char *e_favorites[] = {"🧊"};
 
 static EmojiSet emojis[10] = {
-    { e_emotions,   160   },
-    { e_people,     156   },
-    { e_nature,     147   },
-    { e_foods,      134   },
-    { e_places,     218   },
-    { e_activity,   85    },
-    { e_object,     261   },
-    { e_symbol,     211   },
-    { e_flags,      5     },
-    { e_favorites,  1     },
+    EMOJI_SET(e_emotions),
+    EMOJI_SET(e_people),
+    EMOJI_SET(e_nature),
+    EMOJI_SET(e_foods),
+    EMOJI_SET(e_places),
+    EMOJI_SET(e_activity),
+    EMOJI_SET(e_object),
+    EMOJI_SET(e_symbol),
+    EMOJI_SET(e_flags),
+    EMOJI_SET(e_favorites),
 };
