@@ -5,6 +5,7 @@
 #include <X11/cursorfont.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "drw.h"
 #include "util.h"
@@ -36,6 +37,7 @@ static void draw_emoji(int c, int r, int focus);
 // utils
 int get_block(int x, int y, int *c, int *r);
 int is_emoji(int c, int r);
+void update_emoji_focus(int focus, int c, int r);
 
 
 /* variables */
@@ -98,7 +100,6 @@ void setup(void) {
         PointerMotionMask | KeyPressMask | ExposureMask |
         ButtonPressMask | LeaveWindowMask
     );
-
 }
 
 // events
@@ -112,6 +113,7 @@ void buttonpress(XEvent *e) {
     XButtonPressedEvent *ev = &e->xbutton;
     int x = ev->x, y = ev->y;
     int c, r;
+    char cmd[100];
 
     // mouse right click
     if (ev->button == 1) {
@@ -125,7 +127,11 @@ void buttonpress(XEvent *e) {
                     draw_grid();
                 }
             } else {
-                
+                if (is_emoji(c, r)) {
+                    int e = r * grid + c + scroll * grid;
+                    sprintf(cmd, "echo -n %s | xclip -selection clibboard", emojis[tab].emojis[e]);
+                    system(cmd);
+                }
             }
         }
     }
@@ -144,9 +150,7 @@ void buttonpress(XEvent *e) {
             scroll++;
             draw_grid();
         }
-        
     }
-
 }
 
 void keypress(XEvent *e) {
@@ -166,33 +170,23 @@ void mousemove(XEvent *e) {
         XDefineCursor(dpy, win, c_hover);
         
         if (curnt_emoji_c != c || curnt_emoji_r != r) {
-            if (curnt_emoji_c != -1) draw_emoji(curnt_emoji_c, curnt_emoji_r, 0);
-            draw_emoji(c, r, 1);
-            curnt_emoji_c = c;
-            curnt_emoji_r = r;
+            update_emoji_focus(0, 0, 0); // clear last focus
+            update_emoji_focus(1, c, r); // focus on current
         }
     } else {
         XDefineCursor(dpy, win, 0);
-        if (curnt_emoji_c != -1) {
-            draw_emoji(curnt_emoji_c, curnt_emoji_r, 0);
-            curnt_emoji_c = -1;
-            curnt_emoji_r = -1;
-        }
+        update_emoji_focus(0, 0, 0);
     }
 }
 
 void window_leave(XEvent *e) {
-    if (curnt_emoji_c != -1) {
-        draw_emoji(curnt_emoji_c, curnt_emoji_r, 0);
-        curnt_emoji_c = -1;
-        curnt_emoji_r = -1;
-    }
+    update_emoji_focus(0, 0, 0);
 }
 
 // draws
 void draw_tabs(void) {
     for (int c = 0; c < grid; c++) {
-        draw_emoji(c, 7, 0);
+        draw_emoji(c, 7, curnt_emoji_c == c && curnt_emoji_r == 7);
     }
 }
 
@@ -216,13 +210,10 @@ void draw_emoji(int c, int r, int focus) {
 
     if (r == tabs_row) {
         drw_text(drw, x, y, box, box, 6, tabs[c], 0);
+
         if (c == tab) {
             XSetForeground(dpy, drw->gc, tab_active);
             XFillRectangle(dpy, win, drw->gc, x, y, box, tab_line);
-
-            if (curnt_emoji_c == c && curnt_emoji_r == r)
-                drw_rect(drw, x, y + box - tab_line, box, tab_line, 1, 0);
-            
         }
     } else 
         drw_text(drw, x, y, box, box, 6, emojis[tab].emojis[e], 0);
@@ -259,12 +250,28 @@ int is_emoji(int c, int r) {
     return (r * grid + c + scroll * grid < emojis[tab].length);
 }
 
+void update_emoji_focus(int focus, int c, int r) {
+    if (focus) {
+        draw_emoji(c, r, 1);
+        curnt_emoji_c = c;
+        curnt_emoji_r = r;
+    } else {
+        if (curnt_emoji_c != -1) {
+            draw_emoji(curnt_emoji_c, curnt_emoji_r, 0);
+            curnt_emoji_c = -1;
+            curnt_emoji_r = -1;
+        }
+    }
+}
+
 int main() {
     if (!(dpy = XOpenDisplay(NULL)))
         die("orpheus: cannot open display");
     
     setup();
     run();
+
+    XCloseDisplay(dpy);
 
     return 0;
 }
