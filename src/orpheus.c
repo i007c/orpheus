@@ -32,12 +32,12 @@ static void window_leave(XEvent *e);
 // draws
 static void draw_tabs(void);
 static void draw_grid(void);
-static void draw_emoji(int c, int r, int focus);
+static void draw_emoji(int c, int r);
 
 // utils
 int get_block(int x, int y, int *c, int *r);
 int is_emoji(int c, int r);
-void update_emoji_focus(int focus, int c, int r);
+void update_emoji_focus(int c, int r);
 
 
 /* variables */
@@ -56,10 +56,13 @@ static Drw *drw;
 static int lrpad;
 static int tab = 0;
 static int scroll = 0;
-// curnt = current
-static int curnt_emoji_c = -1;
-static int curnt_emoji_r = -1;
 static Cursor c_hover;
+// current emoji pos
+static int crnt_emoji_c = -1;
+static int crnt_emoji_r = -1;
+// last emoji pos
+static int last_emoji_c = -1;
+static int last_emoji_r = -1;
 
 #include "config.h"
 
@@ -169,24 +172,23 @@ void mousemove(XEvent *e) {
     if (get_block(x, y, &c, &r) && (r == tabs_row || is_emoji(c, r))) {
         XDefineCursor(dpy, win, c_hover);
         
-        if (curnt_emoji_c != c || curnt_emoji_r != r) {
-            update_emoji_focus(0, 0, 0); // clear last focus
-            update_emoji_focus(1, c, r); // focus on current
+        if (crnt_emoji_c != c || crnt_emoji_r != r) {
+            update_emoji_focus(c, r); // focus on current
         }
     } else {
         XDefineCursor(dpy, win, 0);
-        update_emoji_focus(0, 0, 0);
+        update_emoji_focus(-1, -1);
     }
 }
 
 void window_leave(XEvent *e) {
-    update_emoji_focus(0, 0, 0);
+    update_emoji_focus(-1, -1);
 }
 
 // draws
 void draw_tabs(void) {
     for (int c = 0; c < grid; c++) {
-        draw_emoji(c, 7, curnt_emoji_c == c && curnt_emoji_r == 7);
+        draw_emoji(c, tabs_row);
     }
 }
 
@@ -198,12 +200,12 @@ void draw_grid(void) {
 
         for (c = 0; c < grid; c++) {
             if (!is_emoji(c, r)) continue;
-            draw_emoji(c, r, 0);
+            draw_emoji(c, r);
         }
     }
 }
 
-void draw_emoji(int c, int r, int focus) {
+void draw_emoji(int c, int r) {
     int e = r * grid + c + scroll * grid;
     int x = gap_box * c;
     int y = gap_box * r;
@@ -215,11 +217,14 @@ void draw_emoji(int c, int r, int focus) {
             XSetForeground(dpy, drw->gc, tab_active);
             XFillRectangle(dpy, win, drw->gc, x, y, box, tab_line);
         }
-    } else 
+    } else {
+        if (!is_emoji(c, r)) return;
         drw_text(drw, x, y, box, box, 6, emojis[tab].emojis[e], 0);
+    }
     
     
-    if (!focus) return;
+    // focus
+    if (crnt_emoji_c != c || crnt_emoji_r != r) return;
     
     if (r == tabs_row) {
         drw_rect(drw, x, y + box - tab_line, box, tab_line, 1, 0);
@@ -250,17 +255,20 @@ int is_emoji(int c, int r) {
     return (r * grid + c + scroll * grid < emojis[tab].length);
 }
 
-void update_emoji_focus(int focus, int c, int r) {
-    if (focus) {
-        draw_emoji(c, r, 1);
-        curnt_emoji_c = c;
-        curnt_emoji_r = r;
-    } else {
-        if (curnt_emoji_c != -1) {
-            draw_emoji(curnt_emoji_c, curnt_emoji_r, 0);
-            curnt_emoji_c = -1;
-            curnt_emoji_r = -1;
-        }
+void update_emoji_focus(int c, int r) {
+    crnt_emoji_c = c;
+    crnt_emoji_r = r;
+        
+    if (last_emoji_c != -1) {
+        draw_emoji(last_emoji_c, last_emoji_r);
+        last_emoji_c = c;
+        last_emoji_r = r;
+    }
+
+    if (c != -1) {
+        draw_emoji(c, r);
+        last_emoji_c = c;
+        last_emoji_r = r;
     }
 }
 
