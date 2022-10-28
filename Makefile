@@ -16,4 +16,18 @@ clean:
 	rm orpheus
 	rm ./build/*.o
 
-.PHONY: all clean
+
+install: all
+	mkdir -p ${DESTDIR}${PREFIX}/bin
+	cp -f orpheus ${DESTDIR}${PREFIX}/bin
+	chmod 755 ${DESTDIR}${PREFIX}/bin/orpheus
+	ln -s ${DESTDIR}${PREFIX}/bin/orpheus ${DESTDIR}${PREFIX}/bin/emoji-picker
+
+	rm orpheus
+	rm ./build/*.o
+
+uninstall:
+	rm -f ${DESTDIR}${PREFIX}/bin/orpheus
+	rm -f ${DESTDIR}${PREFIX}/bin/emoji-picker
+
+.PHONY: all clean install uninstall
