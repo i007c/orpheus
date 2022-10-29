@@ -21,7 +21,7 @@ install: all
 	mkdir -p ${DESTDIR}${PREFIX}/bin
 	cp -f orpheus ${DESTDIR}${PREFIX}/bin
 	chmod 755 ${DESTDIR}${PREFIX}/bin/orpheus
-	ln -s ${DESTDIR}${PREFIX}/bin/orpheus ${DESTDIR}${PREFIX}/bin/emoji-picker
+	ln -sf ${DESTDIR}${PREFIX}/bin/orpheus ${DESTDIR}${PREFIX}/bin/emoji-picker
 
 	rm orpheus
 	rm ./build/*.o
