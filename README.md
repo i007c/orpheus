@@ -32,5 +32,6 @@ then just run the `orpheus` or `emoji-picker` as you wish
 * [ ] Support for multi char emojis
 * [ ] Smooth rendering
 * [ ] integrated copy to clipboard system
+* [ ] Keyboard shortcuts
 
 ## Feel free to contribute
