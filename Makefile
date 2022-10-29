@@ -6,6 +6,9 @@ OBJ = $(addprefix ./build/, $(addsuffix .o, $(FILES)))
 
 all: orpheus
 
+src/config.h:
+	cp src/config.def.h $@
+
 build/%.o: src/%.c src/config.h
 	${CC} -c ${CFLAGS} $< -o $@
 

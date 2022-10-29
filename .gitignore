@@ -55,3 +55,4 @@ build
 orpheus
 .env
 script/emojis/emojis.*
+src/config.h
