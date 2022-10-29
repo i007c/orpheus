@@ -27,11 +27,16 @@ sudo make install
 
 then just run the `orpheus` or `emoji-picker` as you wish
 
+## Configuration
+
+`make` command will generate a new file for you in `src` directory\
+called `config.h`. read the comments in this file and changed them as you wish.
+
 ## Todos
 
 * [ ] Support for multi char emojis
 * [ ] Smooth rendering
 * [ ] integrated copy to clipboard system
-* [ ] Keyboard shortcuts
+* [ ] Better keyboard shortcuts
 
-## Feel free to contribute
+## Feel Free to Contribute
