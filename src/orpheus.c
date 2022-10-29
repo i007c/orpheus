@@ -55,7 +55,6 @@ static Display *dpy;
 static Window win;
 static Drw *drw;
 static int lrpad;
-static int tab = 0;
 static int scroll = 0;
 static Cursor c_hover;
 // current emoji pos
@@ -197,11 +196,9 @@ void draw_grid(void) {
     int c, r;
 
     for (r = 0; r < tabs_row; r++) {
-        XClearArea(dpy, win, 0, r * gap_box, width, box, 0);
-
         for (c = 0; c < grid; c++) {
-            if (!is_emoji(c, r)) continue;
-            draw_emoji(c, r);
+            if (is_emoji(c, r)) draw_emoji(c, r);
+            else XClearArea(dpy, win, c * gap_box, r * gap_box, box, box, 0);
         }
     }
 }
