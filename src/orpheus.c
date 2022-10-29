@@ -17,6 +17,7 @@
 typedef struct {
     const char **emojis;
     int length;
+    unsigned int max_scroll;
 } EmojiSet;
 
 
@@ -39,6 +40,10 @@ static void draw_emoji(int c, int r);
 int get_block(int x, int y, int *c, int *r);
 int is_emoji(int c, int r);
 void update_emoji_focus(int c, int r);
+void update_scroll(int change);
+void copy_emoji(int c, int r);
+void keyboard_movement(short move);
+void update_tab(short index);
 
 
 /* variables */
@@ -49,7 +54,7 @@ static void (*handler[LASTEvent])(XEvent *) = {
     [KeyPress] = keypress,
     [LeaveNotify] = window_leave,
 };
-static int running = 1;
+static Bool running = True;
 static int screen;
 static Display *dpy;
 static Window win;
@@ -58,11 +63,11 @@ static int lrpad;
 static int scroll = 0;
 static Cursor c_hover;
 // current emoji pos
-static int crnt_emoji_c = -1;
-static int crnt_emoji_r = -1;
+static int crnt_emoji_c = 0;
+static int crnt_emoji_r = 0;
 // last emoji pos
-static int last_emoji_c = -1;
-static int last_emoji_r = -1;
+static int last_emoji_c = 0;
+static int last_emoji_r = 0;
 
 #include "config.h"
 
@@ -76,6 +81,14 @@ void run(void) {
 }
 
 void setup(void) {
+
+    // calculate the max scroll for each emoji_set
+    int i, ms;
+    for (i = 0; i < grid; i++) {
+        ms = (emojis[i].length + grid - 1 - grid * tabs_row) / grid;
+        emojis[i].max_scroll = ms < 0 ? 0 : ms;
+    }
+    
     screen = DefaultScreen(dpy);
     win = XCreateSimpleWindow(
         dpy, XDefaultRootWindow(dpy),
@@ -116,43 +129,25 @@ void buttonpress(XEvent *e) {
     XButtonPressedEvent *ev = &e->xbutton;
     int x = ev->x, y = ev->y;
     int c, r;
-    char cmd[100];
 
     // mouse right click
     if (ev->button == 1) {
         if (get_block(x, y, &c, &r)) {
-            // headers
-            if (r == tabs_row) {
-                if (tab != c) {
-                    tab = c;
-                    scroll = 0;
-                    draw_tabs();
-                    draw_grid();
-                }
-            } else {
-                if (is_emoji(c, r)) {
-                    int e = r * grid + c + scroll * grid;
-                    sprintf(cmd, "echo -n %s | xclip -selection clibboard", emojis[tab].emojis[e]);
-                    system(cmd);
-                }
-            }
+            if (r == tabs_row)
+                update_tab(c);
+            else
+                copy_emoji(c, r);
         }
     }
 
     // scroll up
     else if (ev->button == 4) {
-        if (scroll > 0) {
-            scroll--;
-            draw_grid();
-        }
+        update_scroll(-1);
     }
 
     // scroll down
     else if (ev->button == 5) {
-        if ((scroll + 1) * grid + grid * tabs_row < emojis[tab].length + grid) {
-            scroll++;
-            draw_grid();
-        }
+        update_scroll(1);
     }
 }
 
@@ -160,8 +155,67 @@ void keypress(XEvent *e) {
     XKeyEvent *ev = &e->xkey;
     KeySym keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
 
-    if (keysym == XK_Escape || keysym == XK_q)
-        running = 0;
+    switch (keysym) {
+        case XK_Escape:
+        case XK_q:
+            running = False;
+            return;
+        
+        case XK_Page_Up:
+            update_scroll(-1);
+            break;
+
+        case XK_Page_Down:
+            update_scroll(1);
+            break;
+        
+        case XK_Return:
+            if (crnt_emoji_c != -1) {
+                if (crnt_emoji_r == tabs_row)
+                    update_tab(crnt_emoji_c);
+                else
+                    copy_emoji(crnt_emoji_c, crnt_emoji_r);
+            }
+            break;
+        
+        case XK_Up:
+            keyboard_movement(0);
+            break;
+
+        case XK_Right:
+            if (ev->state == ShiftMask) update_tab(tab + 1);
+            else keyboard_movement(1);
+            break;
+
+        case XK_Down:
+            keyboard_movement(2);
+            break;
+            
+        case XK_Left:
+            if (ev->state == ShiftMask) update_tab(tab - 1);
+            else keyboard_movement(3);
+            break;
+        
+        case XK_Home:
+            scroll = 0;
+            draw_grid();
+            update_emoji_focus(0, 0);
+            break;
+
+        case XK_End:
+            if (emojis[tab].max_scroll < 1 || 
+                scroll == emojis[tab].max_scroll) break;
+
+            scroll = emojis[tab].max_scroll;
+            draw_grid();
+            update_emoji_focus(grid - 1, tabs_row - 2);
+            break;
+        
+        case XK_Tab:
+            if (crnt_emoji_c == -1) crnt_emoji_c = 0;
+            if (crnt_emoji_r != tabs_row) update_emoji_focus(crnt_emoji_c, tabs_row);
+            else update_emoji_focus(0, 0);
+    }
 }
 
 void mousemove(XEvent *e) {
@@ -267,6 +321,97 @@ void update_emoji_focus(int c, int r) {
         last_emoji_c = c;
         last_emoji_r = r;
     }
+}
+
+void update_scroll(int change) {
+    int s = scroll + change;
+    if (s < 0) s = 0;
+    if (s > emojis[tab].max_scroll) s = emojis[tab].max_scroll;
+    if (s == scroll) return;
+
+    scroll = s;
+    draw_grid();
+}
+
+void copy_emoji(int c, int r) {
+    int e;
+    char cmd[100];
+
+    if (is_emoji(c, r)) {
+        e = r * grid + c + scroll * grid;
+        sprintf(cmd, "echo -n %s | xclip -selection clibboard", emojis[tab].emojis[e]);
+        system(cmd);
+    }
+}
+
+void keyboard_movement(short move) {
+    if (crnt_emoji_c == -1) return;
+
+    int c = crnt_emoji_c;
+    int r = crnt_emoji_r;
+
+    /*
+     * moves:
+     * 0 = up
+     * 1 = right
+     * 2 = down
+     * 3 = left
+     */
+    switch (move) {
+        case 0:
+            if (r > 0) {
+                if (is_emoji(c, r - 1)) update_emoji_focus(c, r - 1);
+            } else {
+                update_scroll(-1);
+            }
+                
+            return;
+
+        case 1:
+            if (c < grid - 1) {
+                if (r == tabs_row || is_emoji(c + 1, r)) update_emoji_focus(c + 1, r);
+            } else {
+                if (is_emoji(0, r + 1)) update_emoji_focus(0, r + 1);
+                else update_emoji_focus(0, r);
+            }
+            return;
+
+        case 2:
+            if (r < tabs_row - 1) {
+                if (is_emoji(c, r + 1)) update_emoji_focus(c, r + 1);
+            } else {
+                update_scroll(1);
+                // update_emoji_focus(c, r - 1);
+            }
+            return;
+
+        case 3:
+            if (c > 0) {
+                if (r == tabs_row || is_emoji(c - 1, r)) update_emoji_focus(c - 1, r);
+            } else {
+                if (r == tabs_row) update_emoji_focus(grid - 1, r);
+                else if (r > 0 && is_emoji(grid - 1, r - 1))
+                    update_emoji_focus(grid - 1, r - 1);
+                else if (scroll > 0 && r == 0) {
+                    update_scroll(-1);
+                    update_emoji_focus(grid - 1, 0);
+                }
+            }
+                
+            return;
+    }
+}
+
+void update_tab(short index) {
+    if (tab == index) return;
+
+    if (index < 0) index = grid - 1;
+    if (index > grid - 1) index = 0;
+
+    tab = index;
+    scroll = 0;
+    draw_tabs();
+    draw_grid();
 }
 
 int main() {
