@@ -81,6 +81,7 @@ void run(void) {
 }
 
 void setup(void) {
+    XSizeHints sh;
 
     // calculate the max scroll for each emoji_set
     int i, ms;
@@ -104,11 +105,12 @@ void setup(void) {
 
     c_hover = XCreateFontCursor(dpy, XC_hand2);
 
-    XSizeHints sh;
-    sh.width = sh.max_width = sh.min_width = width;
-    sh.height = sh.max_height = sh.min_height = height;
-    sh.flags = PSize | PMinSize | PMaxSize;
+    sh.min_width  = sh.max_width  = width;
+    sh.min_height = sh.max_height = height;
+    sh.flags = PMinSize | PMaxSize;
     XSetWMNormalHints(dpy, win, &sh);
+
+    XStoreName(dpy, win, "Orpheus");
 
     XMapWindow(dpy, win);
     XSelectInput(
@@ -345,10 +347,13 @@ void copy_emoji(int c, int r) {
 }
 
 void keyboard_movement(short move) {
-    if (crnt_emoji_c == -1) return;
-
     int c = crnt_emoji_c;
     int r = crnt_emoji_r;
+
+    if (c == -1) {
+        update_emoji_focus(0, 0);
+        return;
+    }
 
     /*
      * moves:
@@ -414,7 +419,10 @@ void update_tab(short index) {
     draw_grid();
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    if (argc == 2 && !strcmp("-v", argv[1]))
+    	die("orpheus-" VERSION);
+
     if (!(dpy = XOpenDisplay(NULL)))
         die("orpheus: cannot open display");
     

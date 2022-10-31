@@ -1,5 +1,5 @@
 # orpheus version
-VERSION = 0.1
+VERSION = 0.2.0
 
 # Customize below to fit your system
 
@@ -17,8 +17,6 @@ XINERAMAFLAGS = -DXINERAMA
 # freetype
 FREETYPELIBS = -lfontconfig -lXft
 FREETYPEINC = /usr/include/freetype2
-# OpenBSD (uncomment)
-#FREETYPEINC = ${X11INC}/freetype2
 
 # includes and libs
 INCS = -I${X11INC} -I${FREETYPEINC}
