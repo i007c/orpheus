@@ -341,7 +341,7 @@ void copy_emoji(int c, int r) {
 
     if (is_emoji(c, r)) {
         e = r * grid + c + scroll * grid;
-        sprintf(cmd, "echo -n %s | xclip -selection clibboard", emojis[tab].emojis[e]);
+        sprintf(cmd, "echo -n %s | xclip -sel p -f | xclip -sel c", emojis[tab].emojis[e]);
         system(cmd);
     }
 }
