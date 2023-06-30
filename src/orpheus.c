@@ -1,24 +1,6 @@
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xft/Xft.h>
-#include <X11/keysym.h>
-#include <X11/cursorfont.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-
+#include "orpheus.h"
 #include "drw.h"
-#include "util.h"
-
-#define LENGTH(X) (sizeof X / sizeof X[0])
-#define EMOJI_SET(X) { X, LENGTH(X) }
-#define TEXTW(X) (drw_fontset_getwidth(drw, (X)) + lrpad)
-
-typedef struct {
-    const char **emojis;
-    int length;
-    unsigned int max_scroll;
-} EmojiSet;
 
 
 static void run(void);
@@ -60,7 +42,7 @@ static Display *dpy;
 static Window win;
 static Drw *drw;
 static int lrpad;
-static int scroll = 0;
+static unsigned int scroll = 0;
 static Cursor c_hover;
 // current emoji pos
 static int crnt_emoji_c = 0;
@@ -99,7 +81,7 @@ void setup(void) {
 
     drw = drw_create(dpy, screen, win, width, height);
     if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
-        die("no fonts could be loaded.");
+        panic("no fonts could be loaded.");
     
     lrpad = drw->fonts->h;
 
@@ -121,7 +103,7 @@ void setup(void) {
 }
 
 // events
-void expose(XEvent *e) {
+void expose(XEvent *UNUSED(E)) {
     drw_setscheme(drw, drw_scm_create(drw, colors, 2));
     draw_tabs();
     draw_grid();
@@ -155,7 +137,8 @@ void buttonpress(XEvent *e) {
 
 void keypress(XEvent *e) {
     XKeyEvent *ev = &e->xkey;
-    KeySym keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
+    KeySym keysym = XkbKeycodeToKeysym(dpy, ev->keycode, 0, ev->state & ShiftMask ? 1 : 0);
+    // KeySym keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
 
     switch (keysym) {
         case XK_Escape:
@@ -237,7 +220,7 @@ void mousemove(XEvent *e) {
     }
 }
 
-void window_leave(XEvent *e) {
+void window_leave(XEvent *UNUSED(E)) {
     update_emoji_focus(-1, -1);
 }
 
@@ -326,10 +309,10 @@ void update_emoji_focus(int c, int r) {
 }
 
 void update_scroll(int change) {
-    int s = scroll + change;
+    int32_t s = scroll + change;
     if (s < 0) s = 0;
-    if (s > emojis[tab].max_scroll) s = emojis[tab].max_scroll;
-    if (s == scroll) return;
+    if ((uint32_t)s > emojis[tab].max_scroll) s = emojis[tab].max_scroll;
+    if ((uint32_t)s == scroll) return;
 
     scroll = s;
     draw_grid();
@@ -421,10 +404,10 @@ void update_tab(short index) {
 
 int main(int argc, char *argv[]) {
     if (argc == 2 && !strcmp("-v", argv[1]))
-    	die("orpheus-" VERSION);
+    	panic("orpheus-" VERSION);
 
     if (!(dpy = XOpenDisplay(NULL)))
-        die("orpheus: cannot open display");
+        panic("orpheus: cannot open display");
     
     setup();
     run();

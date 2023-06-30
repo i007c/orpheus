@@ -1,20 +1,8 @@
-/* See LICENSE file for copyright and license details. */
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#include "util.h"
+#include "orpheus.h"
 
-void *ecalloc(size_t nmemb, size_t size) {
-    void *p;
 
-    if (!(p = calloc(nmemb, size)))
-        die("calloc:");
-    return p;
-}
-
-void die(const char *fmt, ...) {
+void panic(const char *fmt, ...) {
     va_list ap;
 
     va_start(ap, fmt);
@@ -30,3 +18,13 @@ void die(const char *fmt, ...) {
 
     exit(1);
 }
+
+void *ecalloc(size_t nmemb, size_t size) {
+    void *p;
+
+    if (!(p = calloc(nmemb, size)))
+        panic("calloc:");
+
+    return p;
+}
+

@@ -1,19 +1,39 @@
-include config.mk
+# orpheus version
+VERSION = 0.2.0
+
+# paths
+PREFIX = /usr/local
+MANPREFIX = ${PREFIX}/share/man
+
+# flags
+CFLAGS   = -std=gnu11 -pedantic -Os
+CFLAGS  += -Wall -Wno-deprecated-declarations -Werror -Wextra
+CFLAGS  += -I/usr/X11R6/include -I/usr/include/freetype2 -Isrc/include
+CFLAGS  += -DVERSION=\"${VERSION}\"
+LDFLAGS  = -L/usr/X11R6/lib -lXft -lfontconfig -lX11
 
 FILES = orpheus drw util
 SRC = $(addprefix ./src/, $(addsuffix .c, $(FILES)))
 OBJ = $(addprefix ./build/, $(addsuffix .o, $(FILES)))
 
-all: orpheus
+all: clear orpheus
 
-src/config.h:
-	cp src/config.def.h $@
+src/include/config.h:
+	cp src/include/config.def.h $@
 
-build/%.o: src/%.c src/config.h
+build/%.o: src/%.c src/include/config.h
 	${CC} -c ${CFLAGS} $< -o $@
 
 orpheus: ${OBJ}
 	${CC} -o $@ ${OBJ} ${LDFLAGS}
+
+
+clear:
+	printf "\E[H\E[3J"
+	clear
+
+run: orpheus
+	./orpheus
 
 clean:
 	rm orpheus
@@ -33,4 +53,5 @@ uninstall:
 	rm -f ${DESTDIR}${PREFIX}/bin/orpheus
 	rm -f ${DESTDIR}${PREFIX}/bin/emoji-picker
 
-.PHONY: all clean install uninstall
+.PHONY: all clean install uninstall run clear
+.SILENT: run clean clear

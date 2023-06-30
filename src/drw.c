@@ -1,21 +1,11 @@
 
-#include <X11/Xft/Xft.h>
-#include <X11/Xlib.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "drw.h"
-#include "util.h"
+#include "orpheus.h"
 
-#define UTF_INVALID 0xFFFD
-#define UTF_SIZ 4
-
-static const unsigned char utfbyte[UTF_SIZ + 1] = {0x80, 0, 0xC0, 0xE0, 0xF0};
-static const unsigned char utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0,
-                                                   0xF8};
-static const long utfmin[UTF_SIZ + 1] = {0, 0, 0x80, 0x800, 0x10000};
-static const long utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF,
+static const uint8_t utfbyte[UTF_SIZ + 1] = {0x80, 0, 0xC0, 0xE0, 0xF0};
+static const uint8_t utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
+static const uint64_t utfmin[UTF_SIZ + 1] = {0, 0, 0x80, 0x800, 0x10000};
+static const uint64_t utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF,
                                          0x10FFFF};
 
 static long utf8decodebyte(const char c, size_t *i) {
@@ -25,7 +15,7 @@ static long utf8decodebyte(const char c, size_t *i) {
     return 0;
 }
 
-static size_t utf8validate(long *u, size_t i) {
+static size_t utf8validate(uint64_t *u, size_t i) {
     if (!BETWEEN(*u, utfmin[i], utfmax[i]) || BETWEEN(*u, 0xD800, 0xDFFF))
         *u = UTF_INVALID;
     for (i = 1; *u > utfmax[i]; ++i)
@@ -33,9 +23,9 @@ static size_t utf8validate(long *u, size_t i) {
     return i;
 }
 
-static size_t utf8decode(const char *c, long *u, size_t clen) {
+static size_t utf8decode(const char *c, uint64_t *u, size_t clen) {
     size_t i, j, len, type;
-    long udecoded;
+    uint64_t udecoded;
 
     *u = UTF_INVALID;
     if (!clen)
@@ -121,7 +111,7 @@ static Fnt *xfont_create(Drw *drw, const char *fontname,
             return NULL;
         }
     } else {
-        die("no font specified.");
+        panic("no font specified.");
     }
 
     /*
@@ -195,7 +185,7 @@ void drw_clr_create(Drw *drw, Clr *dest, const char *clrname) {
         clrname,
         dest
     ))
-        die("error, cannot allocate color '%s'", clrname);
+        panic("error, cannot allocate color '%s'", clrname);
 }
 
 /* Wrapper to create color schemes. The caller has to call free(3) on the
@@ -245,8 +235,8 @@ int drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h,
     XftDraw *d = NULL;
     Fnt *usedfont, *curfont, *nextfont;
     size_t i, len;
-    int utf8strlen, utf8charlen, render = x || y || w || h;
-    long utf8codepoint = 0;
+    size_t utf8strlen, utf8charlen, render = x || y || w || h;
+    uint64_t utf8codepoint = 0;
     const char *utf8str;
     FcCharSet *fccharset;
     FcPattern *fcpattern;
@@ -337,7 +327,7 @@ int drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h,
 
             if (!drw->fonts->pattern) {
                 /* Refer to the comment in xfont_create for more information. */
-                die("the first font in the cache must be loaded from a font "
+                panic("the first font in the cache must be loaded from a font "
                     "string.");
             }
 
@@ -421,35 +411,3 @@ void drw_cur_free(Drw *drw, Cur *cursor) {
     free(cursor);
 }
 
-/*
-Clr *get_border_color(Display *dpy) {
-    int screen = DefaultScreen(dpy);
-    Clr *dest;
-    char clrname[7];
-    FILE *bf;
-    dest = ecalloc(1, sizeof(XftColor));
-    
-    bf = fopen("/home/i007c/dwm_border_color", "r");
-
-    if (bf == NULL) {
-        die("border file is null");
-    }
-
-    if (fread(clrname, 7, 1, bf) == -1) {
-        die("read error");
-    }
-
-    fclose(bf);
-
-    if (!XftColorAllocName(
-        dpy, 
-        DefaultVisual(dpy, screen),
-        DefaultColormap(dpy, screen), 
-        clrname,
-        dest
-    ))
-        die("error, cannot allocate color in border_color '%s'", clrname);
-
-    return dest;
-}
-*/

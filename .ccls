@@ -1,0 +1,19 @@
+cc
+-Os
+-Wall
+-Werror
+-Wextra
+-Wno-deprecated-declarations
+-std=gnu11
+-pedantic
+
+-I/usr/X11R6/include
+-Isrc/include
+-I/usr/include/freetype2
+
+-L/usr/X11R6/lib
+-lfontconfig -lXft
+-lX11 
+
+-DVERSION="0.2.0"
+

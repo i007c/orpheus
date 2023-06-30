@@ -1,4 +1,8 @@
-/* See LICENSE file for copyright and license details. */
+
+#ifndef __ORPHEUS_DRW_H__
+#define __ORPHEUS_DRW_H__
+
+#include "orpheus.h"
 
 typedef struct {
     Cursor cursor;
@@ -61,4 +65,4 @@ int drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h,
 void drw_map(Drw *drw, Window win, int x, int y, unsigned int w,
              unsigned int h);
 
-// Clr *get_border_color(Display *dpy);
+#endif // __ORPHEUS_DRW_H__
