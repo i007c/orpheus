@@ -32,7 +32,7 @@ clear:
 	printf "\E[H\E[3J"
 	clear
 
-run: orpheus
+run: clear orpheus
 	./orpheus
 
 clean:
