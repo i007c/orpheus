@@ -2,10 +2,6 @@
 
 x11 lightwighet emoji picker no toolkit
 
-## Story
-
-coming soon 😁
-
 ## Demo
 
 <div align="center">
@@ -34,9 +30,9 @@ called `config.h`. read the comments in this file and changed them as you wish.
 
 ## Todos
 
-* [ ] Support for multi char emojis
-* [ ] Smooth rendering
-* [ ] integrated copy to clipboard system
-* [ ] Better keyboard shortcuts
+-   [ ] Support for multi char emojis
+-   [ ] Smooth rendering
+-   [ ] integrated copy to clipboard system
+-   [ ] Better keyboard shortcuts
 
 ## Feel Free to Contribute
