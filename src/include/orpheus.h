@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #include <string.h>
 
@@ -32,8 +33,17 @@
 #define UTF_INVALID 0xFFFD
 #define UTF_SIZ 4
 
+typedef union Emoji {
+    uint64_t raw;
+    struct {
+        uint32_t id;
+        uint16_t group;
+        uint16_t expand;
+    };
+} Emoji;
+
 typedef struct {
-    const char **emojis;
+    Emoji *set;
     size_t length;
     uint32_t max_scroll;
 } EmojiSet;
