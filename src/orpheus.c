@@ -568,8 +568,8 @@ int get_block(int x, int y, int *c, int *r) {
     int cb, rb;
     *c = x / gap_box;
     *r = y / gap_box;
-    cb = (*c + 1) * box + (*c * gap);
-    rb = (*r + 1) * box + (*r * gap);
+    cb = (*c + 1) * EMOT_BOX + (*c * gap);
+    rb = (*r + 1) * EMOT_BOX + (*r * gap);
 
     if ((y - rb) <= 0 && (x - cb) <= 0)
         return 1;
@@ -578,7 +578,7 @@ int get_block(int x, int y, int *c, int *r) {
 }
 
 int is_emoji(int c, int r) {
-    return (r * grid + c + scroll * grid < emojis[tab].length);
+    return (grid[r][c].e != NULL);
 }
 
 void update_emoji_focus(int c, int r) {
@@ -605,16 +605,18 @@ void update_scroll(int change) {
     if ((uint32_t)s == scroll) return;
 
     scroll = s;
-    draw_grid();
+    calc_grid();
 }
 
 void copy_emoji(int c, int r) {
-    int e;
     char cmd[100];
 
     if (is_emoji(c, r)) {
-        e = r * grid + c + scroll * grid;
-        sprintf(cmd, "echo -n %s | xclip -sel p -f | xclip -sel c", emojis[tab].emojis[e]);
+        sprintf(
+            cmd,
+            "echo -n %s | xclip -sel p -f | xclip -sel c",
+            gidmap[grid[r][c].id]
+        );
         system(cmd);
     }
 }
@@ -646,7 +648,7 @@ void keyboard_movement(short move) {
             return;
 
         case 1:
-            if (c < grid - 1) {
+            if (c < GRID_BOX - 1) {
                 if (r == tabs_row || is_emoji(c + 1, r)) update_emoji_focus(c + 1, r);
             } else {
                 if (is_emoji(0, r + 1)) update_emoji_focus(0, r + 1);
@@ -667,12 +669,12 @@ void keyboard_movement(short move) {
             if (c > 0) {
                 if (r == tabs_row || is_emoji(c - 1, r)) update_emoji_focus(c - 1, r);
             } else {
-                if (r == tabs_row) update_emoji_focus(grid - 1, r);
-                else if (r > 0 && is_emoji(grid - 1, r - 1))
-                    update_emoji_focus(grid - 1, r - 1);
+                if (r == tabs_row) update_emoji_focus(GRID_BOX - 1, r);
+                else if (r > 0 && is_emoji(GRID_BOX - 1, r - 1))
+                    update_emoji_focus(GRID_BOX - 1, r - 1);
                 else if (scroll > 0 && r == 0) {
                     update_scroll(-1);
-                    update_emoji_focus(grid - 1, 0);
+                    update_emoji_focus(GRID_BOX - 1, 0);
                 }
             }
                 
@@ -683,13 +685,14 @@ void keyboard_movement(short move) {
 void update_tab(short index) {
     if (tab == index) return;
 
-    if (index < 0) index = grid - 1;
-    if (index > grid - 1) index = 0;
+    if (index < 0) index = GRID_BOX - 1;
+    if (index > GRID_BOX - 1) index = 0;
 
     tab = index;
     scroll = 0;
     draw_tabs();
-    draw_grid();
+    calc_grid();
+    // draw_grid();
 }
 
 int main(int argc, char *argv[]) {
