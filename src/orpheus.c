@@ -258,51 +258,309 @@ void window_leave(XEvent *UNUSED(E)) {
 
 // draws
 void draw_tabs(void) {
-    for (int c = 0; c < grid; c++) {
+    for (int c = 0; c < GRID_BOX; c++) {
         draw_emoji(c, tabs_row);
     }
 }
 
-void draw_grid(void) {
-    int c, r;
+void calc_grid(void) {
+    uint32_t c = 0, r = 0, g;
+    size_t e = GRID_BOX * scroll;
+    size_t idx = 0;
+    EmojiGrid *eg;
+    uint32_t id;
+
+    for (idx = 0; idx < GRID_BOX * scroll; idx++) {
+        emojis[tab].set[idx].expand = false;
+    }
+
 
     for (r = 0; r < tabs_row; r++) {
-        for (c = 0; c < grid; c++) {
-            if (is_emoji(c, r)) draw_emoji(c, r);
-            else XClearArea(dpy, win, c * gap_box, r * gap_box, box, box, 0);
+        for (c = 0; c < GRID_BOX; c++) {
+            eg = &grid[r][c];
+
+            if (e >= emojis[tab].length) {
+                eg->e = NULL;
+                continue;
+            }
+
+            eg->e = &emojis[tab].set[e];
+            eg->id = eg->e->id;
+            eg->child = -1;
+
+            e++;
+
+            if (eg->e->expand && eg->e->group) {
+                for (g = 0; g < 6; g++) {
+                    id = EmojiGroups[eg->e->group][g];
+                    if (id == eg->e->id) continue;
+
+                    c++;
+                    if (c > GRID_BOX-1) {
+                        r++;
+                        c = 0;
+                    }
+
+                    grid[r][c].e = eg->e;
+                    grid[r][c].id = id;
+                    grid[r][c].child = 6 - g;
+                }
+            } 
         }
     }
+
+    draw_grid();
+}
+
+
+void draw_grid(void) {
+    uint8_t r, c;
+    EmojiGrid *eg;
+    int x, y, ty;
+
+    XSetForeground(drw->dpy, drw->gc, drw->scheme[ColBg].pixel);
+    XPoint points[4];
+
+    XftDraw *d = XftDrawCreate(
+        drw->dpy, drw->drawable,
+        DefaultVisual(drw->dpy, drw->screen),
+        DefaultColormap(drw->dpy, drw->screen)
+    );
+
+    for (r = 0; r < tabs_row; r++) {
+        y = gap_box * r;
+        ty = y + (EMOT_BOX - drw->fonts->h) / 2 + drw->fonts->xfont->ascent;
+        for (c = 0; c < GRID_BOX; c++) {
+            x = gap_box * c;
+            eg = &grid[r][c];
+
+            if (!eg->e) {
+                XClearArea(dpy, win, x, y, EMOT_BOX, EMOT_BOX, 0);
+                continue;
+            }
+
+            XSetForeground(drw->dpy, drw->gc, drw->scheme[ColBg].pixel);
+            XFillRectangle(
+                drw->dpy, drw->drawable, drw->gc,
+                x, y, EMOT_BOX, EMOT_BOX
+            );
+            XftDrawGlyphs(
+                d, &drw->scheme[ColFg],
+                drw->fonts->xfont, x+6, ty, &eg->id, 1
+            );
+
+            if (eg->child > 0) {
+                XSetLineAttributes(
+                    dpy, drw->gc, FLW,
+                    LineSolid, CapButt, JoinMiter
+                );
+                XSetForeground(
+                    drw->dpy, drw->gc, tab_active
+                );
+
+                if (eg->child == 1) {
+                    points[0].x = x + FLW2;
+                    points[0].y = y + FLW2;
+
+                    points[1].x = EMOT_BOX - FLW;
+                    points[1].y = 0;
+
+                    points[2].x = 0;
+                    points[2].y = EMOT_BOX - FLW;
+
+                    points[3].x = -EMOT_BOX + FLW2;
+                    points[3].y = 0;
+
+                    XDrawLines(
+                        drw->dpy, drw->drawable, drw->gc,
+                        points, 4, CoordModePrevious
+                    );
+                 } else {
+                    points[0].x = x + EMOT_BOX - FLW2;
+                    points[0].y = y + FLW2;
+
+                    points[1].x = -EMOT_BOX + FLW;
+                    points[1].y = 0;
+
+                    XDrawLines(
+                        drw->dpy, drw->drawable, drw->gc,
+                        points, 2, CoordModePrevious
+                    );
+
+                    points[0].y = y + FLW2 + (EMOT_BOX - FLW);
+
+                    XDrawLines(
+                        drw->dpy, drw->drawable, drw->gc,
+                        points, 2, CoordModePrevious
+                    );
+                }
+            }
+
+            if (eg->e->expand && eg->child == -1) {
+                points[0].x = x + EMOT_BOX - FLW2;
+                points[0].y = y + FLW2;
+
+                points[1].x = -EMOT_BOX + FLW2 * 2;
+                points[1].y = 0;
+
+                points[2].x = 0;
+                points[2].y = EMOT_BOX - FLW2 * 2;
+
+                points[3].x = EMOT_BOX - FLW2;
+                points[3].y = 0;
+
+                XSetLineAttributes(
+                    dpy, drw->gc, FLW,
+                    LineSolid, CapButt, JoinMiter
+                );
+
+                XSetForeground(
+                    drw->dpy, drw->gc, tab_active
+                );
+
+                XDrawLines(
+                    drw->dpy, drw->drawable, drw->gc,
+                    points, 4, CoordModePrevious
+                );
+            }
+        }
+    }
+
+    if (d) XftDrawDestroy(d);
 }
 
 void draw_emoji(int c, int r) {
-    int e = r * grid + c + scroll * grid;
     int x = gap_box * c;
     int y = gap_box * r;
+    EmojiGrid *eg = NULL;
+    int ty = y + (EMOT_BOX - drw->fonts->h) / 2 + drw->fonts->xfont->ascent;
+    XPoint points[4];
+
+    XSetForeground(drw->dpy, drw->gc, drw->scheme[ColBg].pixel);
+    XFillRectangle(drw->dpy, drw->drawable, drw->gc, x, y, EMOT_BOX, EMOT_BOX);
+
+    XftDraw *d = XftDrawCreate(
+        drw->dpy, drw->drawable,
+        DefaultVisual(drw->dpy, drw->screen),
+        DefaultColormap(drw->dpy, drw->screen)
+    );
+
+    // XClearArea(dpy, win, x, y, box, box, 0);
 
     if (r == tabs_row) {
-        drw_text(drw, x, y, box, box, 6, tabs[c], 0);
+        XftDrawGlyphs(
+            d, &drw->scheme[ColFg],
+            drw->fonts->xfont, x+6, ty, &tabs[c], 1
+        );
+        // drw_text(drw, x, y, box, box, 6, tabs[c], 0);
 
         if (c == tab) {
             XSetForeground(dpy, drw->gc, tab_active);
-            XFillRectangle(dpy, win, drw->gc, x, y, box, tab_line);
+            XFillRectangle(dpy, win, drw->gc, x, y, EMOT_BOX, tab_line);
         }
     } else {
         if (!is_emoji(c, r)) return;
-        drw_text(drw, x, y, box, box, 6, emojis[tab].emojis[e], 0);
+        eg = &grid[r][c];
+        // drw_text(drw, x, y, box, box, 6, emojis[tab].emojis[e], 0);
+        XftDrawGlyphs(
+            d, &drw->scheme[ColFg],
+            drw->fonts->xfont, x+6, ty, &eg->id, 1
+        );
     }
     
     // focus
-    if (crnt_emoji_c != c || crnt_emoji_r != r) return;
+    if (crnt_emoji_c != c || crnt_emoji_r != r) {
+        if (r == tabs_row) return;
+
+        if (eg->child > 0) {
+            XSetLineAttributes(
+                dpy, drw->gc, FLW,
+                LineSolid, CapButt, JoinMiter
+            );
+            XSetForeground(
+                drw->dpy, drw->gc, tab_active
+            );
+
+            if (eg->child == 1) {
+                points[0].x = x + FLW2;
+                points[0].y = y + FLW2;
+
+                points[1].x = EMOT_BOX - FLW;
+                points[1].y = 0;
+
+                points[2].x = 0;
+                points[2].y = EMOT_BOX - FLW;
+
+                points[3].x = -EMOT_BOX + FLW2;
+                points[3].y = 0;
+
+                XDrawLines(
+                    drw->dpy, drw->drawable, drw->gc,
+                    points, 4, CoordModePrevious
+                );
+             } else {
+                points[0].x = x + EMOT_BOX - FLW2;
+                points[0].y = y + FLW2;
+
+                points[1].x = -EMOT_BOX + FLW;
+                points[1].y = 0;
+
+                XDrawLines(
+                    drw->dpy, drw->drawable, drw->gc,
+                    points, 2, CoordModePrevious
+                );
+
+                points[0].y = y + FLW2 + (EMOT_BOX - FLW);
+
+                XDrawLines(
+                    drw->dpy, drw->drawable, drw->gc,
+                    points, 2, CoordModePrevious
+                );
+            }
+        }
+
+        if (eg->e->expand && eg->child == -1) {
+            points[0].x = x + EMOT_BOX - FLW2;
+            points[0].y = y + FLW2;
+
+            points[1].x = -EMOT_BOX + FLW2 * 2;
+            points[1].y = 0;
+
+            points[2].x = 0;
+            points[2].y = EMOT_BOX - FLW2 * 2;
+
+            points[3].x = EMOT_BOX - FLW2;
+            points[3].y = 0;
+
+            XSetLineAttributes(
+                dpy, drw->gc, FLW,
+                LineSolid, CapButt, JoinMiter
+            );
+
+            XSetForeground(
+                drw->dpy, drw->gc, tab_active
+            );
+
+            XDrawLines(
+                drw->dpy, drw->drawable, drw->gc,
+                points, 4, CoordModePrevious
+            );
+        }
+
+        return;
+    }
     
     if (r == tabs_row) {
-        drw_rect(drw, x, y + box - tab_line, box, tab_line, 1, 0);
+        drw_rect(drw, x, y + EMOT_BOX - tab_line, EMOT_BOX, tab_line, 1, 0);
     } else {
-        XSetLineAttributes(dpy, drw->gc, focus_line[0], LineSolid, CapButt, JoinMiter);
+        XSetLineAttributes(dpy, drw->gc, FLW, LineSolid, CapButt, JoinMiter);
         drw_rect(drw, 
-            x + focus_line[1], y + focus_line[1], 
-            box - focus_line[0], box - focus_line[0], 0, 0
+            x + FLW2, y + FLW2, 
+            EMOT_BOX - FLW, EMOT_BOX - FLW, 0, 0
         );
     }
+
+    if (d) XftDrawDestroy(d);
 }
 
 // utils
