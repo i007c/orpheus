@@ -17,6 +17,7 @@ static void window_leave(XEvent *e);
 // draws
 static void draw_tabs(void);
 static void draw_grid(void);
+static void calc_grid(void);
 static void draw_emoji(int c, int r);
 
 // utils
