@@ -1,6 +1,7 @@
 
 #include "orpheus.h"
 #include "drw.h"
+#include "emojis.h"
 
 
 static void run(void);
