@@ -3,7 +3,7 @@ cc
 -Wall
 -Werror
 -Wextra
--Wno-deprecated-declarations
+-Wno-missing-braces
 -std=gnu11
 -pedantic
 

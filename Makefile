@@ -7,7 +7,8 @@ MANPREFIX = ${PREFIX}/share/man
 
 # flags
 CFLAGS   = -std=gnu11 -pedantic -Os
-CFLAGS  += -Wall -Wno-deprecated-declarations -Werror -Wextra
+CFLAGS  += -Wall -Werror -Wextra
+CFLAGS  += -Wno-missing-braces
 CFLAGS  += -I/usr/X11R6/include -I/usr/include/freetype2 -Isrc/include
 CFLAGS  += -DVERSION=\"${VERSION}\"
 LDFLAGS  = -L/usr/X11R6/lib -lXft -lfontconfig -lX11
@@ -21,7 +22,10 @@ all: clear orpheus
 src/include/config.h:
 	cp src/include/config.def.h $@
 
-build/%.o: src/%.c src/include/config.h
+src/include/emojis.h:
+	cp src/include/emojis.def.h $@
+
+build/%.o: src/%.c src/include/config.h src/include/emojis.h
 	${CC} -c ${CFLAGS} $< -o $@
 
 orpheus: ${OBJ}
