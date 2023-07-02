@@ -55,6 +55,15 @@ static int last_emoji_r = 0;
 
 #include "config.h"
 
+typedef struct EmojiGrid {
+    FT_UInt id;
+    Emoji *e;
+    int32_t child;
+} EmojiGrid;
+
+static EmojiGrid grid[GRID_BOX][GRID_BOX];
+
+
 void run(void) {
     XEvent ev;
     /* main event loop */
@@ -67,11 +76,21 @@ void run(void) {
 void setup(void) {
     XSizeHints sh;
 
+    memset(grid, 0, sizeof(grid));
+
     // calculate the max scroll for each emoji_set
-    int i, ms;
-    for (i = 0; i < grid; i++) {
-        ms = (emojis[i].length + grid - 1 - grid * tabs_row) / grid;
+    int32_t i, ms;
+    uint16_t group = 0;
+
+    for (i = 0; i < GRID_BOX; i++) {
+        ms = (emojis[i].length + GRID_BOX - 1 - GRID_BOX * tabs_row) / GRID_BOX;
         emojis[i].max_scroll = ms < 0 ? 0 : ms;
+
+        for (size_t j = 0; j < emojis[i].length; j++) {
+            group = emojis[i].set[j].group;
+            if (group)
+                emojis[i].set[j].id = EmojiGroups[group][EG_COLOR];
+        }
     }
     
     screen = DefaultScreen(dpy);
@@ -108,31 +127,40 @@ void setup(void) {
 void expose(XEvent *UNUSED(E)) {
     drw_setscheme(drw, drw_scm_create(drw, colors, 2));
     draw_tabs();
-    draw_grid();
+    calc_grid();
+    // draw_grid();
 }
 
 void buttonpress(XEvent *e) {
     XButtonPressedEvent *ev = &e->xbutton;
     int x = ev->x, y = ev->y;
     int c, r;
+    EmojiGrid emoji;
 
-    // mouse right click
     if (ev->button == 1) {
+        // mouse right click
         if (get_block(x, y, &c, &r)) {
             if (r == tabs_row)
                 update_tab(c);
             else
                 copy_emoji(c, r);
+
         }
-    }
-
-    // scroll up
-    else if (ev->button == 4) {
+    } else if (ev->button == 3) {
+        // mouse left click
+        if (get_block(x, y, &c, &r)) {
+            if (r == tabs_row) return;
+            emoji = grid[r][c];
+            if (!emoji.e->group) return;
+            emoji.e->expand = !emoji.e->expand;
+            calc_grid();
+            // draw_grid();
+        }
+    } else if (ev->button == 4) {
+        // scroll up
         update_scroll(-1);
-    }
-
-    // scroll down
-    else if (ev->button == 5) {
+    } else if (ev->button == 5) {
+        // scroll down
         update_scroll(1);
     }
 }
@@ -185,7 +213,8 @@ void keypress(XEvent *e) {
         
         case XK_Home:
             scroll = 0;
-            draw_grid();
+            calc_grid();
+            // draw_grid();
             update_emoji_focus(0, 0);
             break;
 
@@ -194,8 +223,9 @@ void keypress(XEvent *e) {
                 scroll == emojis[tab].max_scroll) break;
 
             scroll = emojis[tab].max_scroll;
-            draw_grid();
-            update_emoji_focus(grid - 1, tabs_row - 2);
+            calc_grid();
+            // draw_grid();
+            update_emoji_focus(GRID_BOX - 1, tabs_row - 2);
             break;
         
         case XK_Tab:
