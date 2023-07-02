@@ -56,5 +56,6 @@ orpheus
 .env
 script/emojis/emojis.*
 src/include/config.h
+src/include/emojis.h
 ignorethis.*
 .ccls-cache/
