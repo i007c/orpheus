@@ -138,7 +138,7 @@ fav = [
 
 
 font_path = '/usr/share/fonts/noto/NotoColorEmoji.ttf'
-output = open('tabs.h', 'w')
+# output = open('tabs.h', 'w')
 ttf = TTFont(font_path)
 cmap = ttf.getBestCmap()
 
@@ -153,6 +153,14 @@ def conv(name, arr):
     output.write('\n};\n\n')
 
 
+while (inp := input('Emoji > ')) != 'q':
+    try:
+        print(len(inp), inp)
+        gid = ttf.getGlyphID(cmap[ord(inp[0])])
+        print(gid)
+    except Exception as e:
+        print(e)
+
 # conv('tabs', tabs)
 # conv('e_foods', e_foods)
 # conv('e_nature', e_nature)
@@ -162,7 +170,7 @@ def conv(name, arr):
 # conv('e_places', e_places)
 # conv('e_emotions', e_emotions)
 # conv('e_activity', e_activity)
-conv('fav', fav)
+# conv('fav', fav)
 
 # conv(
 #     'all',
@@ -171,4 +179,4 @@ conv('fav', fav)
 # )
 
 ttf.close()
-output.close()
+# output.close()
