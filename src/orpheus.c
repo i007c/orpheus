@@ -151,7 +151,8 @@ void buttonpress(XEvent *e) {
         if (get_block(x, y, &c, &r)) {
             if (r == tabs_row) return;
             emoji = grid[r][c];
-            if (!emoji.e->group) return;
+            printf("id: %d\n", emoji.id);
+            if (!emoji.e || !emoji.e->group) return;
             emoji.e->expand = !emoji.e->expand;
             calc_grid();
             // draw_grid();
