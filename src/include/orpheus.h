@@ -16,6 +16,7 @@
 #include <X11/keysym.h>
 #include <X11/cursorfont.h>
 #include <X11/XKBlib.h>
+#include <X11/Xos.h>
 
 #define LENGTH(X) (sizeof X / sizeof X[0])
 #define EMOJI_SET(X) { X, LENGTH(X), 0 }

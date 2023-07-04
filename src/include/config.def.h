@@ -4,7 +4,7 @@
 
 #include "orpheus.h"
 #define EMOT_BOX 45 // 45x45 emoji box
-#define GRID_BOX 10 // 10x10 grid
+#define GRID_BOX 11 // 10x10 grid
 #define FLW 2 // width of focus line
 
 #define FLW2 FLW / 2

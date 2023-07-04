@@ -30,9 +30,9 @@ called `config.h`. read the comments in this file and changed them as you wish.
 
 ## Todos
 
--   [ ] Support for multi char emojis
+-   [x] Support for multi char emojis
 -   [ ] Smooth rendering
--   [ ] integrated copy to clipboard system
 -   [ ] Better keyboard shortcuts
+-   [ ] debug rendering emojis
 
 ## Feel Free to Contribute

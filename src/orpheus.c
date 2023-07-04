@@ -17,6 +17,7 @@ static void window_leave(XEvent *e);
 // draws
 static void draw_tabs(void);
 static void draw_grid(void);
+static void draw_search_text(void);
 static void calc_grid(void);
 static void draw_emoji(int c, int r);
 static void calc_max_scroll(int idx);
@@ -39,12 +40,16 @@ static void (*handler[LASTEvent])(XEvent *) = {
     [KeyPress] = keypress,
     [LeaveNotify] = window_leave,
 };
-static Bool running = True;
+static bool running = true;
 static int screen;
+static char search_query[1024];
+static size_t search_offset = 0;
+static bool search = false;
 static Display *dpy;
 static Window win;
 static Drw *drw;
 static XftDraw *xftdraw;
+static XftFont *emoji_font;
 static int lrpad;
 static unsigned int scroll = 0;
 static Cursor c_hover;
@@ -83,6 +88,7 @@ void setup(void) {
 
     expand_length = 0;
     memset(grid, 0, sizeof(grid));
+    memset(search_query, 0, sizeof(search_query));
 
     // calculate the max scroll for each emoji_set
     int32_t i;
@@ -90,6 +96,11 @@ void setup(void) {
 
     for (i = 0; i < GRID_BOX; i++) {
         calc_max_scroll(i);
+
+        if (i == search_tab) {
+            emojis[i].length = 0;
+            emojis[i].max_scroll = 0;
+        }
 
         for (size_t j = 0; j < emojis[i].length; j++) {
             group = emojis[i].set[j].group;
@@ -109,7 +120,8 @@ void setup(void) {
     if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
         panic("no fonts could be loaded.");
     
-    lrpad = drw->fonts->h;
+    emoji_font = drw->fonts->next->xfont;
+    lrpad = emoji_font->height;
 
     c_hover = XCreateFontCursor(dpy, XC_hand2);
 
@@ -139,7 +151,6 @@ void expose(XEvent *UNUSED(E)) {
     drw_setscheme(drw, drw_scm_create(drw, colors, 2));
     draw_tabs();
     calc_grid();
-    // draw_grid();
 }
 
 void buttonpress(XEvent *e) {
@@ -175,7 +186,6 @@ void buttonpress(XEvent *e) {
             }
 
             calc_grid();
-            // draw_grid();
         }
     } else if (ev->button == 4) {
         // scroll up
@@ -188,15 +198,73 @@ void buttonpress(XEvent *e) {
 
 void keypress(XEvent *e) {
     XKeyEvent *ev = &e->xkey;
-    KeySym keysym = XkbKeycodeToKeysym(dpy, ev->keycode, 0, ev->state & ShiftMask ? 1 : 0);
+    KeySym keysym = XkbKeycodeToKeysym(
+        dpy, ev->keycode, 0, ev->state & ShiftMask ? 1 : 0
+    );
     // KeySym keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
+    
+    char keystr;
+    size_t len = strlen(search_query);
+
+    if (search) {
+        switch (keysym) {
+            case XK_BackSpace:
+                len = strlen(search_query);
+                if (len)
+                    search_query[len-1] = '\0';
+                break;
+
+            case XK_Escape:
+                search = false;
+                memset(search_query, 0, sizeof(search_query));
+                XClearArea(dpy, win, 0, 0, width, height - EMOT_BOX, 0);
+                update_tab(0);
+                return;
+
+            case XK_Right:
+                search_offset++;
+                if (search_offset > len - 5)
+                    search_offset = len - 5;
+                break;
+
+            case XK_Left:
+                if (search_offset)
+                    search_offset--;
+                break;
+
+            default:
+                if (XLookupString(ev, &keystr, 1, NULL, NULL)) {
+                    if (keystr < 32 || keystr > 126) break;
+                    if (len == sizeof(search_query)) break;
+                    search_query[len] = keystr;
+                }
+        }
+
+        if (search_query[0] == 'f') {
+            emojis[search_tab].set[0].id = 69;
+            emojis[search_tab].set[0].group = 0;
+            emojis[search_tab].set[0].expand = false;
+            emojis[search_tab].length = 1;
+        } else {
+            emojis[search_tab].length = 0;
+        }
+
+        draw_search_text();
+        calc_grid();
+        return;
+    }
 
     switch (keysym) {
         case XK_Escape:
         case XK_q:
-            running = False;
+            running = false;
             return;
         
+        case XK_s:
+            update_tab(search_tab);
+            search = true;
+            return;
+
         case XK_Page_Up:
             update_scroll(-1);
             break;
@@ -235,7 +303,6 @@ void keypress(XEvent *e) {
         case XK_Home:
             scroll = 0;
             calc_grid();
-            // draw_grid();
             update_emoji_focus(0, 0);
             break;
 
@@ -245,7 +312,6 @@ void keypress(XEvent *e) {
 
             scroll = emojis[tab].max_scroll;
             calc_grid();
-            // draw_grid();
             update_emoji_focus(GRID_BOX - 1, tabs_row - 2);
             break;
         
@@ -253,6 +319,7 @@ void keypress(XEvent *e) {
             if (crnt_emoji_c == -1) crnt_emoji_c = 0;
             if (crnt_emoji_r != tabs_row) update_emoji_focus(crnt_emoji_c, tabs_row);
             else update_emoji_focus(0, 0);
+            break;
     }
 }
 
@@ -351,6 +418,10 @@ void calc_grid(void) {
 }
 
 
+void draw_search_text(void) {
+    drw_text(drw, 0, 0, width, EMOT_BOX, 5, &search_query[search_offset], 0);
+}
+
 void draw_grid(void) {
     uint8_t r, c;
     EmojiGrid *eg;
@@ -360,7 +431,14 @@ void draw_grid(void) {
 
     for (r = 0; r < tabs_row; r++) {
         y = gap_box * r;
-        ty = y + (EMOT_BOX - drw->fonts->h) / 2 + drw->fonts->xfont->ascent;
+        ty = y + (EMOT_BOX - emoji_font->height) / 2 + emoji_font->ascent;
+
+        if (search) {
+            ty += EMOT_BOX;
+            y += EMOT_BOX;
+            if (r == tabs_row - 1) break;
+        }
+
         for (c = 0; c < GRID_BOX; c++) {
             x = gap_box * c;
             eg = &grid[r][c];
@@ -377,7 +455,7 @@ void draw_grid(void) {
             );
             XftDrawGlyphs(
                 xftdraw, &drw->scheme[ColFg],
-                drw->fonts->xfont, x+6, ty, &eg->id, 1
+                emoji_font, x+6, ty, &eg->id, 1
             );
 
             if (eg->child > 0) {
@@ -385,9 +463,7 @@ void draw_grid(void) {
                     dpy, drw->gc, FLW,
                     LineSolid, CapButt, JoinMiter
                 );
-                XSetForeground(
-                    drw->dpy, drw->gc, tab_active
-                );
+                XSetForeground(drw->dpy, drw->gc, tab_active);
 
                 if (eg->child == 1) {
                     points[0].x = x + FLW2;
@@ -462,8 +538,16 @@ void draw_emoji(int c, int r) {
     int x = gap_box * c;
     int y = gap_box * r;
     EmojiGrid *eg = NULL;
-    int ty = y + (EMOT_BOX - drw->fonts->h) / 2 + drw->fonts->xfont->ascent;
+    int ty = y + (EMOT_BOX - emoji_font->height) / 2 + emoji_font->ascent;
     XPoint points[4];
+
+    printf("c: %d, r: %d\n", c, r);
+
+    if (search && r != tabs_row) {
+        ty += EMOT_BOX;
+        y += EMOT_BOX;
+        if (r == tabs_row - 1) return;
+    }
 
     XSetForeground(drw->dpy, drw->gc, drw->scheme[ColBg].pixel);
     XFillRectangle(drw->dpy, drw->drawable, drw->gc, x, y, EMOT_BOX, EMOT_BOX);
@@ -473,9 +557,8 @@ void draw_emoji(int c, int r) {
     if (r == tabs_row) {
         XftDrawGlyphs(
             xftdraw, &drw->scheme[ColFg],
-            drw->fonts->xfont, x+6, ty, &tabs[c], 1
+            emoji_font, x+6, ty, &tabs[c], 1
         );
-        // drw_text(drw, x, y, box, box, 6, tabs[c], 0);
 
         if (c == tab) {
             XSetForeground(dpy, drw->gc, tab_active);
@@ -484,10 +567,9 @@ void draw_emoji(int c, int r) {
     } else {
         if (!is_emoji(c, r)) return;
         eg = &grid[r][c];
-        // drw_text(drw, x, y, box, box, 6, emojis[tab].emojis[e], 0);
         XftDrawGlyphs(
             xftdraw, &drw->scheme[ColFg],
-            drw->fonts->xfont, x+6, ty, &eg->id, 1
+            emoji_font, x+6, ty, &eg->id, 1
         );
     }
     
@@ -500,9 +582,7 @@ void draw_emoji(int c, int r) {
                 dpy, drw->gc, FLW,
                 LineSolid, CapButt, JoinMiter
             );
-            XSetForeground(
-                drw->dpy, drw->gc, tab_active
-            );
+            XSetForeground(drw->dpy, drw->gc, tab_active);
 
             if (eg->child == 1) {
                 points[0].x = x + FLW2;
@@ -560,9 +640,7 @@ void draw_emoji(int c, int r) {
                 LineSolid, CapButt, JoinMiter
             );
 
-            XSetForeground(
-                drw->dpy, drw->gc, tab_active
-            );
+            XSetForeground(drw->dpy, drw->gc, tab_active);
 
             XDrawLines(
                 drw->dpy, drw->drawable, drw->gc,
@@ -577,10 +655,7 @@ void draw_emoji(int c, int r) {
         drw_rect(drw, x, y + EMOT_BOX - tab_line, EMOT_BOX, tab_line, 1, 0);
     } else {
         XSetLineAttributes(dpy, drw->gc, FLW, LineSolid, CapButt, JoinMiter);
-        drw_rect(drw, 
-            x + FLW2, y + FLW2, 
-            EMOT_BOX - FLW, EMOT_BOX - FLW, 0, 0
-        );
+        drw_rect(drw, x + FLW2, y + FLW2, EMOT_BOX - FLW, EMOT_BOX - FLW, 0, 0);
     }
 }
 
@@ -646,7 +721,9 @@ void keyboard_movement(short move) {
     int c = crnt_emoji_c;
     int r = crnt_emoji_r;
 
-    if (c == -1) {
+    printf("c: %d - r: %d\n", c, r);
+
+    if (c < 0 || r < 0) {
         update_emoji_focus(0, 0);
         return;
     }
@@ -661,7 +738,8 @@ void keyboard_movement(short move) {
     switch (move) {
         case 0:
             if (r > 0) {
-                if (is_emoji(c, r - 1)) update_emoji_focus(c, r - 1);
+                if (is_emoji(c, r - 1))
+                    update_emoji_focus(c, r - 1);
             } else {
                 update_scroll(-1);
             }
@@ -669,17 +747,22 @@ void keyboard_movement(short move) {
             return;
 
         case 1:
-            if (c < GRID_BOX - 1) {
-                if (r == tabs_row || is_emoji(c + 1, r)) update_emoji_focus(c + 1, r);
+            if (c < GRID_BOX) {
+                if (r == tabs_row || is_emoji(c + 1, r)) {
+                    update_emoji_focus(c + 1, r);
+                }
             } else {
-                if (is_emoji(0, r + 1)) update_emoji_focus(0, r + 1);
-                else update_emoji_focus(0, r);
+                if (is_emoji(0, r + 1))
+                    update_emoji_focus(0, r + 1);
+                else
+                    update_emoji_focus(0, r);
             }
             return;
 
         case 2:
-            if (r < tabs_row - 1) {
-                if (is_emoji(c, r + 1)) update_emoji_focus(c, r + 1);
+            if (r < tabs_row) {
+                if (is_emoji(c, r + 1))
+                    update_emoji_focus(c, r + 1);
             } else {
                 update_scroll(1);
                 // update_emoji_focus(c, r - 1);
@@ -713,10 +796,18 @@ void update_tab(short index) {
         emojis[tab].set[i].expand = false;
     }
 
+    printf("index: %d\n", index);
+
     tab = index;
     expand_length = 0;
     scroll = 0;
     draw_tabs();
+
+    if (tab == search_tab) {
+        search = true;
+        XClearArea(dpy, win, 0, 0, width, height - EMOT_BOX, 0);
+        draw_search_text();
+    }
     calc_grid();
 }
 
