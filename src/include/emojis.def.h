@@ -2,7 +2,7 @@
 #define __ORPHEUS_EMOJIS_H__
 
 #include "orpheus.h"
-#define EG_COLOR 0
+#define EG_COLOR 0 // from 0 to 5
 #define EG(gidx) { .id = 0, .group = gidx, .expand = 0 }
 
 FT_UInt tabs[] = {
