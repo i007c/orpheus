@@ -19,6 +19,7 @@ static void draw_tabs(void);
 static void draw_grid(void);
 static void calc_grid(void);
 static void draw_emoji(int c, int r);
+static void calc_max_scroll(int idx);
 
 // utils
 int get_block(int x, int y, int *c, int *r);
@@ -43,9 +44,11 @@ static int screen;
 static Display *dpy;
 static Window win;
 static Drw *drw;
+static XftDraw *xftdraw;
 static int lrpad;
 static unsigned int scroll = 0;
 static Cursor c_hover;
+static size_t expand_length = 0;
 // current emoji pos
 static int crnt_emoji_c = 0;
 static int crnt_emoji_r = 0;
@@ -73,18 +76,20 @@ void run(void) {
             handler[ev.type](&ev); /* call handler */
 }
 
+
+
 void setup(void) {
     XSizeHints sh;
 
+    expand_length = 0;
     memset(grid, 0, sizeof(grid));
 
     // calculate the max scroll for each emoji_set
-    int32_t i, ms;
+    int32_t i;
     uint16_t group = 0;
 
     for (i = 0; i < GRID_BOX; i++) {
-        ms = (emojis[i].length + GRID_BOX - 1 - GRID_BOX * tabs_row) / GRID_BOX;
-        emojis[i].max_scroll = ms < 0 ? 0 : ms;
+        calc_max_scroll(i);
 
         for (size_t j = 0; j < emojis[i].length; j++) {
             group = emojis[i].set[j].group;
@@ -121,6 +126,12 @@ void setup(void) {
         PointerMotionMask | KeyPressMask | ExposureMask |
         ButtonPressMask | LeaveWindowMask
     );
+
+    xftdraw = XftDrawCreate(
+        drw->dpy, drw->drawable,
+        DefaultVisual(drw->dpy, drw->screen),
+        DefaultColormap(drw->dpy, drw->screen)
+    );
 }
 
 // events
@@ -151,9 +162,18 @@ void buttonpress(XEvent *e) {
         if (get_block(x, y, &c, &r)) {
             if (r == tabs_row) return;
             emoji = grid[r][c];
-            printf("id: %d\n", emoji.id);
+            if (!emoji.e) return;
+            printf("id: %d - g: %d\n", emoji.id, emoji.e->group);
             if (!emoji.e || !emoji.e->group) return;
+
             emoji.e->expand = !emoji.e->expand;
+
+            if (emoji.e->expand) {
+                expand_length += 5;
+            } else {
+                expand_length -= 5;
+            }
+
             calc_grid();
             // draw_grid();
         }
@@ -264,17 +284,34 @@ void draw_tabs(void) {
     }
 }
 
+void calc_max_scroll(int idx) {
+    size_t ms = emojis[idx].length + expand_length + GRID_BOX - 1;
+    if (ms < GRID_BOX * (GRID_BOX - 1)) {
+        emojis[idx].max_scroll = 0;
+        return;
+    }
+    ms -= GRID_BOX * (GRID_BOX - 1);
+    emojis[idx].max_scroll = ms / GRID_BOX;
+}
+
 void calc_grid(void) {
-    uint32_t c = 0, r = 0, g;
+    uint8_t c = 0, r = 0, g;
     size_t e = GRID_BOX * scroll;
     size_t idx = 0;
     EmojiGrid *eg;
     uint32_t id;
 
     for (idx = 0; idx < GRID_BOX * scroll; idx++) {
+        if (emojis[tab].set[idx].expand) expand_length -= 5;
         emojis[tab].set[idx].expand = false;
     }
 
+    for (idx = e + GRID_BOX * (GRID_BOX-1); idx < emojis[tab].length; idx++) {
+        if (emojis[tab].set[idx].expand) expand_length -= 5;
+        emojis[tab].set[idx].expand = false;
+    }
+
+    calc_max_scroll(tab);
 
     for (r = 0; r < tabs_row; r++) {
         for (c = 0; c < GRID_BOX; c++) {
@@ -319,14 +356,7 @@ void draw_grid(void) {
     EmojiGrid *eg;
     int x, y, ty;
 
-    XSetForeground(drw->dpy, drw->gc, drw->scheme[ColBg].pixel);
     XPoint points[4];
-
-    XftDraw *d = XftDrawCreate(
-        drw->dpy, drw->drawable,
-        DefaultVisual(drw->dpy, drw->screen),
-        DefaultColormap(drw->dpy, drw->screen)
-    );
 
     for (r = 0; r < tabs_row; r++) {
         y = gap_box * r;
@@ -335,7 +365,7 @@ void draw_grid(void) {
             x = gap_box * c;
             eg = &grid[r][c];
 
-            if (!eg->e) {
+            if (eg->e == NULL) {
                 XClearArea(dpy, win, x, y, EMOT_BOX, EMOT_BOX, 0);
                 continue;
             }
@@ -346,7 +376,7 @@ void draw_grid(void) {
                 x, y, EMOT_BOX, EMOT_BOX
             );
             XftDrawGlyphs(
-                d, &drw->scheme[ColFg],
+                xftdraw, &drw->scheme[ColFg],
                 drw->fonts->xfont, x+6, ty, &eg->id, 1
             );
 
@@ -426,8 +456,6 @@ void draw_grid(void) {
             }
         }
     }
-
-    if (d) XftDrawDestroy(d);
 }
 
 void draw_emoji(int c, int r) {
@@ -440,17 +468,11 @@ void draw_emoji(int c, int r) {
     XSetForeground(drw->dpy, drw->gc, drw->scheme[ColBg].pixel);
     XFillRectangle(drw->dpy, drw->drawable, drw->gc, x, y, EMOT_BOX, EMOT_BOX);
 
-    XftDraw *d = XftDrawCreate(
-        drw->dpy, drw->drawable,
-        DefaultVisual(drw->dpy, drw->screen),
-        DefaultColormap(drw->dpy, drw->screen)
-    );
-
     // XClearArea(dpy, win, x, y, box, box, 0);
 
     if (r == tabs_row) {
         XftDrawGlyphs(
-            d, &drw->scheme[ColFg],
+            xftdraw, &drw->scheme[ColFg],
             drw->fonts->xfont, x+6, ty, &tabs[c], 1
         );
         // drw_text(drw, x, y, box, box, 6, tabs[c], 0);
@@ -464,7 +486,7 @@ void draw_emoji(int c, int r) {
         eg = &grid[r][c];
         // drw_text(drw, x, y, box, box, 6, emojis[tab].emojis[e], 0);
         XftDrawGlyphs(
-            d, &drw->scheme[ColFg],
+            xftdraw, &drw->scheme[ColFg],
             drw->fonts->xfont, x+6, ty, &eg->id, 1
         );
     }
@@ -560,8 +582,6 @@ void draw_emoji(int c, int r) {
             EMOT_BOX - FLW, EMOT_BOX - FLW, 0, 0
         );
     }
-
-    if (d) XftDrawDestroy(d);
 }
 
 // utils
@@ -689,11 +709,15 @@ void update_tab(short index) {
     if (index < 0) index = GRID_BOX - 1;
     if (index > GRID_BOX - 1) index = 0;
 
+    for (size_t i = 0; i < emojis[tab].length; i++) {
+        emojis[tab].set[i].expand = false;
+    }
+
     tab = index;
+    expand_length = 0;
     scroll = 0;
     draw_tabs();
     calc_grid();
-    // draw_grid();
 }
 
 int main(int argc, char *argv[]) {
@@ -706,6 +730,9 @@ int main(int argc, char *argv[]) {
     setup();
     run();
 
+    XftDrawDestroy(xftdraw);
+    drw_free(drw);
+    XDestroyWindow(dpy, win);
     XCloseDisplay(dpy);
 
     return 0;
