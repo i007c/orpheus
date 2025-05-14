@@ -1,6 +1,6 @@
 # Orpheus
 
-x11 lightwighet emoji picker no toolkit
+emoji picker rewritten from c x11 to rust egui
 
 ## Demo
 
@@ -18,7 +18,7 @@ you also need to have [xclip](https://github.com/astrand/xclip) installed for co
 ```bash
 git clone https://github.com/i007c/orpheus.git
 cd orpheus
-sudo make install
+cargo run -r
 ```
 
 then just run the `orpheus` or `emoji-picker` as you wish
