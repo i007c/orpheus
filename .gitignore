@@ -1,3 +1,4 @@
 Makefile.old
-src.c
-script.py
+src.c/
+script.py/
+target/
