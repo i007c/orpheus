@@ -2,3 +2,5 @@ Makefile.old
 src.c/
 script.py/
 target/
+v/
+pref.json

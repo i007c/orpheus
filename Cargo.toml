@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+eframe = { version = "0.31.0", features = ["persistence"] }
+egui = { version = "0.31.0", features = ["persistence", "color-hex"] }
+egui_extras = { version = "0.31.0", features = ["all_loaders"] }
