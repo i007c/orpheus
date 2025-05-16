@@ -5,9 +5,9 @@ pub struct Config {}
 impl Config {
     pub const EMOT_SHRINK: f32 = 6.0;
     pub const EMOT_BOX: f32 = 54.0;
-    pub const GRID: usize = 11;
+    pub const GRID: usize = 10;
     pub const GAP: f32 = 2.0;
-    pub const SEARCH_HEIGHT: f32 = 50.0;
+    pub const SEARCH_HEIGHT: f32 = 24.0;
 
     pub const GRID_BOX: f32 = Self::GRID as f32 * Self::EMOT_BOX
         + ((Self::GRID as f32 - 1.0) * Self::GAP);

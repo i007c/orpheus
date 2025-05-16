@@ -3,8 +3,7 @@ use config::Config;
 mod app;
 mod config;
 mod data;
-mod emoji;
-mod fonts;
+mod emote;
 mod shortcuts;
 mod utils;
 

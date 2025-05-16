@@ -1,25 +1,24 @@
+use crate::config::Config;
 use egui::{Color32, Sense, Stroke, Vec2, WidgetInfo, WidgetType};
 
-use crate::config::Config;
-
-pub struct Emoji<'a> {
+pub struct Emote<'a> {
     unicode: &'static str,
     image: &'a egui::Image<'a>,
     copy: bool,
 }
 
-pub fn emoji<'a>(
+pub fn emote<'a>(
     unicode: &'static str, image: &'a egui::Image<'a>, copy: bool,
-) -> Emoji<'a> {
-    Emoji { unicode, image, copy }
+) -> Emote<'a> {
+    Emote { unicode, image, copy }
 }
 
-impl<'a> egui::Widget for Emoji<'a> {
+impl egui::Widget for Emote<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let desired_size = Vec2::splat(Config::EMOT_BOX);
-
-        let (rect, response) =
-            ui.allocate_exact_size(desired_size, Sense::HOVER | Sense::CLICK);
+        let (rect, response) = ui.allocate_exact_size(
+            Vec2::splat(Config::EMOT_BOX),
+            Sense::HOVER | Sense::CLICK,
+        );
         response.widget_info(|| WidgetInfo::new(WidgetType::ImageButton));
 
         if ui.is_rect_visible(rect) {

@@ -12,6 +12,7 @@ pub fn copy_text(text: &str) {
 
     let mut stdin = secondary.stdin.take().unwrap();
     stdin.write_all(text.as_bytes()).unwrap();
+    drop(secondary);
 
     let mut primary = Command::new("xclip")
         .args(["-sel", "p"])
@@ -21,4 +22,5 @@ pub fn copy_text(text: &str) {
 
     let mut stdin = primary.stdin.take().unwrap();
     stdin.write_all(text.as_bytes()).unwrap();
+    drop(primary);
 }
