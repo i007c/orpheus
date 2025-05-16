@@ -4,3 +4,4 @@ script.py/
 target/
 v/
 pref.json
+Cargo.lock
