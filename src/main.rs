@@ -26,7 +26,7 @@ fn main() {
     };
 
     eframe::run_native(
-        "00-team-test-app",
+        "Orpheus",
         native_options,
         Box::new(|cc| Ok(Box::new(app::OrpheusApp::new(cc)))),
     )

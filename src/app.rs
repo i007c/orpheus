@@ -8,10 +8,12 @@ use ttf_parser::{
     gsub::{LigatureSubstitution, SubstitutionSubtable},
 };
 
+type Emo = (GlyphId, &'static str);
+
 pub struct OrpheusApp<'a> {
     face: ttfp::Face<'static>,
     cache: Vec<Option<egui::Image<'a>>>,
-    emoji_map: HashMap<&'static str, GlyphId>,
+    emoji_map: HashMap<&'static str, Emo>,
     ligs: Vec<LigatureSubstitution<'static>>,
     tab: usize,
     search: String,
@@ -101,27 +103,26 @@ impl OrpheusApp<'_> {
 
     fn init_emoji_map(&mut self) -> Option<()> {
         for (emoji, tab) in crate::data::TABS {
-            if let Some(gid) = self.emoji_to_glyph_id(emoji) {
-                self.emoji_map.insert(emoji, gid);
-            }
+            self.emo(emoji);
             for e in tab.iter() {
-                if let Some(gid) = self.emoji_to_glyph_id(e) {
-                    self.emoji_map.insert(e, gid);
-                }
+                self.emo(e);
             }
         }
 
         Some(())
     }
 
-    pub fn emoji_glyph(&mut self, emoji: &'static str) -> Option<GlyphId> {
-        if let Some(gid) = self.emoji_map.get(emoji) {
-            return Some(*gid);
+    pub fn emo(&mut self, code: &'static str) -> Option<Emo> {
+        if let Some((gid, name)) = self.emoji_map.get(code) {
+            return Some((*gid, name));
         }
 
-        let gid = self.emoji_to_glyph_id(emoji)?;
-        self.emoji_map.insert(emoji, gid);
-        Some(gid)
+        let gid = self.emoji_to_glyph_id(code)?;
+        let name = emoji::lookup_by_glyph::lookup(code)
+            .map(|v| v.name)
+            .unwrap_or_default();
+        self.emoji_map.insert(code, (gid, name));
+        Some((gid, name))
     }
 
     pub fn emoji_image(&mut self, gid: GlyphId) -> Option<&egui::Image<'_>> {
@@ -143,10 +144,13 @@ impl OrpheusApp<'_> {
         self.cache[idx].as_ref()
     }
 
-    pub fn emote(&mut self, code: &'static str, ui: &mut egui::Ui) {
-        let img = self.emoji_glyph(code).and_then(|g| self.emoji_image(g));
-        if let Some(img) = img {
-            ui.add(emote(code, img, true));
+    pub fn emote(
+        &mut self, code: &'static str, ui: &mut egui::Ui, for_tabs: bool,
+    ) -> egui::Response {
+        let emo =
+            self.emo(code).and_then(|(g, n)| Some((self.emoji_image(g)?, n)));
+        if let Some((img, name)) = emo {
+            ui.add(emote(code, img, name, !for_tabs))
         } else {
             let (rc, rs) = ui.allocate_exact_size(
                 Vec2::splat(Config::EMOT_BOX),
@@ -172,6 +176,7 @@ impl OrpheusApp<'_> {
             if rs.clicked() {
                 crate::utils::copy_text(code);
             }
+            rs
         }
     }
 }
@@ -230,7 +235,7 @@ impl eframe::App for OrpheusApp<'_> {
                                 ui.end_row();
                             }
 
-                            self.emote(code, ui);
+                            self.emote(code, ui, false);
                         }
                     })
                 });
@@ -244,7 +249,7 @@ impl eframe::App for OrpheusApp<'_> {
                                 ui.end_row();
                             }
 
-                            self.emote(code, ui);
+                            self.emote(code, ui, false);
                         }
                     })
                 });
@@ -252,9 +257,7 @@ impl eframe::App for OrpheusApp<'_> {
 
             tg.show(ui, |ui| {
                 for (i, (code, _)) in crate::data::TABS.iter().enumerate() {
-                    let Some(gid) = self.emoji_glyph(code) else { continue };
-                    let Some(img) = self.emoji_image(gid) else { continue };
-                    if ui.add(emote(code, img, false)).clicked() {
+                    if self.emote(code, ui, true).clicked() {
                         self.tab = i;
                         self.search.clear();
                     }
