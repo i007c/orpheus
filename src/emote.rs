@@ -53,7 +53,10 @@ impl egui::Widget for Emote<'_> {
         }
 
         if self.copy && rs.clicked() {
+            #[cfg(target_os = "linux")]
             crate::utils::copy_text(self.unicode);
+            #[cfg(not(target_os = "linux"))]
+            ui.ctx().copy_text(self.unicode.to_string());
         }
 
         rs

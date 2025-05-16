@@ -3,6 +3,7 @@ use std::{
     process::{Command, Stdio},
 };
 
+#[cfg(target_os = "linux")]
 pub fn copy_text(text: &str) {
     let mut secondary = Command::new("xclip")
         .args(["-sel", "c"])
