@@ -10,7 +10,8 @@ macro_rules! shortcuts {
 }
 
 shortcuts! {
-    QUIT: CTRL + Q,
+    QUIT: NONE + Q,
+    CQUIT: CTRL + Q,
     // FULLSCREEN: NONE + F,
     // OPEN_FILE: CTRL + O,
 }

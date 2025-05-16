@@ -183,7 +183,10 @@ impl OrpheusApp<'_> {
 
 impl eframe::App for OrpheusApp<'_> {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        if ctx.input_mut(|i| i.consume_shortcut(&sc::QUIT)) {
+        if (self.search.is_empty()
+            && ctx.input_mut(|i| i.consume_shortcut(&sc::QUIT)))
+            || ctx.input_mut(|i| i.consume_shortcut(&sc::CQUIT))
+        {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
 
