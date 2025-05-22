@@ -5,8 +5,8 @@ edition = "2024"
 
 [dependencies]
 # ab_glyph = "0.2.29"
-eframe = { version = "0.31.0", features = ["persistence"] }
-egui = { version = "0.31.0", features = ["persistence", "color-hex"] }
+eframe = { version = "0.31.0" }
+egui = { version = "0.31.0", features = ["color-hex"] }
 egui_extras = { version = "0.31.0", features = ["all_loaders"] }
 epaint = "0.31.1"
 ttf-parser = "0.25.1"

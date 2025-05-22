@@ -12,7 +12,7 @@ fn main() {
     // pretty_env_logger::init();
 
     let native_options = eframe::NativeOptions {
-        persistence_path: Some("./pref.json".into()),
+        persistence_path: None,
         window_builder: Some(Box::new(|a| {
             a.with_position([1000.0, 200.0])
                 .with_decorations(false)

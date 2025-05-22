@@ -174,7 +174,10 @@ impl OrpheusApp<'_> {
             }
 
             if rs.clicked() {
+                #[cfg(target_os = "linux")]
                 crate::utils::copy_text(code);
+                #[cfg(not(target_os = "linux"))]
+                ui.ctx().copy_text(self.unicode.to_string());
             }
             rs
         }
